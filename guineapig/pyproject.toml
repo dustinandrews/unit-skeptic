@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "guineapig"
+version = "0.1.0"
+description = "Pure-Python pricing toy: a known, controllable mutation-testing guinea pig."
+requires-python = ">=3.12"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
