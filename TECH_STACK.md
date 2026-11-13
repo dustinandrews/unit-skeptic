@@ -1,17 +1,21 @@
-# Tech Stack Example
+# Tech Stack — Adversary
 
-- **Web app:** Flask + gunicorn webhook, nginx reverse-proxy (SSL termination), systemd `ai-email.service` on `:8080`
-- **Language:** Python 3.11+ (`requires-python = ">=3.11"`)
-- **Key packages:** litellm, pydantic, httpx, boto3, structlog, python-dotenv, html2text, mistune, pymupdf, stripe
-- **DB:** SQLite 
-- **Email:** AWS SES (outbound via boto3) + SNS/S3 (inbound storage/notification)
-- **Payments:** Stripe Checkout + webhook
-- **Testing/lint:** pytest tests, ruff (dev dep, no config in pyproject)
+## Language
+- Python 3.12+ (`requires-python = ">=3.12"`)
 
-## Infra (VPS)
-- **Provider:** DigitalOcean droplet, SFO3, 1 vCPU / 512MB RAM / 10GB
-- **SSH:** key-only (ed25519), user `agent` (passwordless sudo), `ssh agent@IPADDRESS`
-- **Deploy:** `./scripts/deploy.sh` — rsyncs `src/` + pyproject.toml, reinstalls deps, restarts service, health check
-- **Env:** `/opt/ai-email/.env` (chmod 600, agent-owned)
-- **Watchdogs:** on-VPS healthcheck (systemd timer every 5 min, `healthcheck.py`); off-box cron watchdog  (SSHes in + alerts Telegram on failure, every 15 min)
-- **Backups:** nightly SQLite dump (iterdump + gzip) to local git 
+## Guinea-pig subject (sprint 1)
+- `guineapig/`: pure-Python pricing package (5 functions), stdlib + pytest only.
+- Test suite: 33 tests (29 boundary + 4 deliberate weak), 100% line coverage, < 2s.
+
+## Score instrument (planned — sprint 2+)
+- Deterministic operator mutator first (zero-LLM), then LLM "Andy" driver (swappable).
+- Mechanical verdicts (killed/survived/error/timeout) — no model judgment of pass/fail.
+- Scratch-dir mutation isolation; real repo never modified.
+- Local pytest subprocess (docker sandbox deferred).
+
+## Dependencies
+- Guinea-pig: none beyond stdlib + pytest.
+- Instrument: stdlib AST, subprocess, pytest (all stdlib-compatible).
+
+## Process
+- Short-sprint method (`~/projects/.SPRINT_METHOD.md`), 10 gates, specs/ artifacts.
