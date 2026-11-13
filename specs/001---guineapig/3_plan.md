@@ -36,9 +36,12 @@ guineapig/
 4. Implement (TDD): `is_taxable(region, item_kind) -> bool` [T004 — P1]
 5. Implement (TDD): `tax_rate(region) -> float` — region lookup + default fallback [T005 — P1]
 6. Implement (TDD): `round_cents(amount) -> int` — half-penny rounding rule [T006 — P1]
-7. Write boundary-covering test battery across all 5 functions (thresholds, zero, negative rejection) [T007 — P1]
+7. Write boundary-covering test battery across all 5 functions (thresholds, zero,
+   negative rejection) PLUS explicit invalid-input cases (negative/typo region raises
+   ValueError or documented exception) per FR-003 [T007 — P1]
 8. Write `test_weak.py` — deliberate tautological/pointless tests (FR-007 cohort, ≥4) [T008 — P2]
-9. README: contracts, protected boundaries, weak-test enumeration (SC-003) [T009 — P2]
+9. README: domain write-up + each function contract + protected boundaries + weak-test
+   enumeration (SC-003) + how to run the suite (FR-006) [T009 — P2]
 
 ## Handling FAILs
 - No review gates pre-completed; plan-review and test-review are independent sub-agents.
