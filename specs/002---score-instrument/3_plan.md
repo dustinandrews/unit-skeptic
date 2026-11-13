@@ -86,4 +86,4 @@ adversary/
 - Reviews by independent sub-agents per method.
 
 ## Review Result
-STATUS: round-2 TDD reorder applied — see 4_plan-review.md; re-review pending.
+STATUS: PASS (round 3; TDD reorder confirmed in 4_plan-review.md).

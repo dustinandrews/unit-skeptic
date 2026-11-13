@@ -3,6 +3,17 @@
 **Branch**: `sprint-2-score-instrument`
 **Date**: 2026-11-12
 
+## Round 3 (re-review result, 2026-11-12)
+Fresh reviewer confirmed all round-1 items CLOSED: TDD-first ordering across all
+phases, reproducibility assertion folded in (unit + integration), test-approval
+delegation documented, FR/SC coverage complete, no new contradictions.
+Non-blocking minor: T006 omits the literal "Approve test set" phrase (standing
+note covers all phases).
+
+STATUS: PASS
+
+---
+
 ## Round 1 — findings
 
 ### Complexity Metrics
