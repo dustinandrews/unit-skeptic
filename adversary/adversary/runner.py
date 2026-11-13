@@ -40,6 +40,23 @@ def run_oracle(subject_dir, src_dir, tests_rel="tests", timeout_s=DEFAULT_TIMEOU
     return proc.returncode, secs, ""
 
 
+def _copy_pkg_inits(scratch, module_rel, src_dir):
+    """Copy enclosing package __init__.py files into the shadow dir.
+
+    For each ancestor directory of module_rel (e.g. "guineapig"), if src_dir
+    has a corresponding __init__.py, write it into the scratch shadow so that
+    directory is a regular package there too.
+    """
+    parts = module_rel.split(os.sep)
+    for i in range(1, len(parts)):
+        rel_dir = os.path.join(*parts[:i])
+        src_init = os.path.join(src_dir, rel_dir, "__init__.py")
+        if os.path.isfile(src_init):
+            dst_init = os.path.join(scratch, rel_dir, "__init__.py")
+            os.makedirs(os.path.dirname(dst_init), exist_ok=True)
+            shutil.copyfile(src_init, dst_init)
+
+
 def run_mutant(subject_dir, module_rel, mutated_source, src_dir=None,
                tests_rel="tests", timeout_s=DEFAULT_TIMEOUT_S):
     """Run the subject suite against a mutated copy of one module.
@@ -47,7 +64,9 @@ def run_mutant(subject_dir, module_rel, mutated_source, src_dir=None,
     `module_rel` is the module's path RELATIVE to `src_dir` (e.g.
     "subject_mod.py" or "guineapig/pricing.py"). The mutant is written to a
     scratch dir that mirrors module_rel, and PYTHONPATH is
-    scratch:src_dir so the mutant shadows the real module.
+    scratch:src_dir so the mutant shadows the real module. Any `__init__.py`
+    files enclosing module_rel are copied into the shadow so package dirs stay
+    REGULAR packages (a namespace shadow won't override a real package).
 
     Returns a mechanical verdict: killed / survived / error / timeout.
     """
@@ -61,6 +80,9 @@ def run_mutant(subject_dir, module_rel, mutated_source, src_dir=None,
         os.makedirs(os.path.dirname(dst) or scratch, exist_ok=True)
         with open(dst, "w") as fh:
             fh.write(mutated_source)
+        # Copy enclosing __init__.py files so shadow package dirs are regular.
+        if src_dir:
+            _copy_pkg_inits(scratch, module_rel, src_dir)
         env = dict(os.environ)
         path = [os.path.abspath(scratch)]
         if src_dir:
