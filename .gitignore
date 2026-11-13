@@ -1,1 +1,3 @@
-research/llmorpheus/
+.scratch/
+results/
+__pycache__/
