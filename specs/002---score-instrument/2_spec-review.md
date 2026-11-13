@@ -42,4 +42,15 @@ STATUS: FAIL — two blockers: ambiguous score denominator, undefined `site`/con
 
 Re-review dispatched (round 3) — a fresh independent reviewer confirms closes.
 
-STATUS: PENDING round-3 re-review.
+## Round 3 (re-review result, 2026-11-12)
+Fresh independent reviewer confirmed both round-1 blockers CLOSED and all four
+round-1 warnings resolved:
+1. Score formula single-valued — FR-004/SC-002/US1-AS1 all agree
+   `killed/(killed+survived)`, error+timeout excluded; no `total_valid_faults`.
+2. Site primitive + replacement unit canonical in FR-002 — LlmMutator slots in
+   unchanged.
+3. SC-004 is observe-only, not a gate; score >= 0.8 is the criterion.
+4. No residual stochastic/seed wording.
+5. No new internal contradictions.
+
+STATUS: PASS
