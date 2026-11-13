@@ -44,13 +44,21 @@ results are interpretable.
 ### Functional Requirements
 - **FR-001**: Project lives at `guineapig/` as an installable pure-Python package
   (`pyproject.toml`, `src/guineapig/`, `tests/`), Python >= 3.12.
-- **FR-002**: Contains a small domain with at least three pure functions spanning:
-  numeric comparisons with thresholds, boolean logic, and a rounding/edge-case rule.
-  Proposed domain: an order/pricing calculator (unit price, tiered quantity discount,
-  tax rate lookup, total rounding).
+- **FR-002**: Contains a small pricing domain with **five named pure functions**
+  in `src/guineapig/`:
+  1. `tier_discount(quantity) -> float` — tiered discount rate by quantity
+     threshold (numeric comparisons; boundary edges: 0, tier cutoffs, e.g. 5/10).
+  2. `apply_tier_discount(unit_price, quantity) -> float` — composes #1 (numeric,
+     threshold-sensitive).
+  3. `is_taxable(region, item_kind) -> bool` — boolean logic flag.
+  4. `tax_rate(region) -> float` — region lookup with a default fallback.
+  5. `round_cents(amount) -> int` — round-to-nearest-cent edge rule (boundary:
+     exact half-penny).
+  These span the mutation surface classes the score instrument must later exercise:
+  numeric comparisons, boolean logic, and rounding edges. See README for contracts.
 - **FR-003**: Every public function is pure and total (defined for all typed inputs,
-  no exceptions for normal inputs); invalid input raises `ValueError` / `TypeError` per
-  docstring.
+  no exceptions for normal inputs); invalid input raises `ValueError` / or a documented
+  domain exception per docstring.
 - **FR-004**: Test suite covers each function's normal path AND boundary conditions
   (threshold edges, zero, negative rejection, empty collections).
 - **FR-005**: Test suite must pass deterministically and fast (< 2s, no network, no
@@ -66,12 +74,14 @@ results are interpretable.
 ## Success Criteria *(mandatory)*
 - **SC-001**: `pytest` in `guineapig/` passes 100% deterministically, exit 0, < 2s.
 - **SC-002**: The toy is reproducibly green on the sprint branch and main.
-- **SC-003**: Ground-truth known: a reviewer can state, from the README, which
-  behaviors are covered and which boundary cases the tests protect.
+- **SC-003**: Ground-truth known (artifact checklist, verified by reviewer
+  inspection): README exists; documents each public function's contract; and
+  enumerates the protected boundary cases (tier thresholds, zero, negative
+  rejection, half-penny rounding).
 
 ## Out of Scope (this sprint)
 - The adversarial score engine itself (later sprints).
 - Any LLM wiring, docker, or mutation logic.
 
 ## Review Result
-STATUS: draft — pending spec-review.
+STATUS: PASS (round 2; see 2_spec-review.md — round 1 passed with warnings applied).
