@@ -48,6 +48,16 @@ Output: surviving mutations = real test-suite blind spots, triaged for equivalen
 - No feedback loop to Andy (it's stateless one-shot) — so no Andy-gaming; but also no adaptation.
   Open choice for us: stateless (like LLMorpheus) vs learning adversary.
 
+## Decisions
+- **START STATELESS** (one-shot Andy, like LLMorpheus). Add adaptivity later — it's additive once an
+  equivalence gate exists to keep it honest.
+- **Adaptivity = cheat-resistant by construction**: separate the *generator* (Andy, stays blind) from
+  a *harness-level adaptor* that steers mutation targeting from mechanical verdicts. Andy never learns
+  what survived.
+- Cheat-resistance levers to consider later: delayed/aggregated feedback (batch summary, no per-mutant
+  trace), held-back verdicts (adapt on subset, test on rest), no reveal of survivors (adaptation via
+  next-site distribution, not explanation).
+
 ## Open questions
 - Deliverable framing: find test gaps for humans (mutation-adequacy) vs. do we need Andy to *also*
   suggest the missing test?
