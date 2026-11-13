@@ -43,6 +43,29 @@ def test_deterministic_noop_when_nothing_flip():
     assert out == []
 
 
+def test_deterministic_flips_ge_to_lt_not_shredded():
+    """Regression: `>` must not shred the `>` inside `>=` into `<= =`."""
+    m = DeterministicMutator()
+    out = m.mutate(_site("a >= b"))
+    assert "a < b" in out
+    assert not any("<=" in cand for cand in out)
+
+
+def test_deterministic_flips_le_to_gt():
+    m = DeterministicMutator()
+    out = m.mutate(_site("a <= b"))
+    assert "a > b" in out
+
+
+def test_deterministic_ge_and_le_each_produce_valid_flips():
+    m = DeterministicMutator()
+    for src, expect in [("a >= b", "a < b"), ("a <= b", "a > b"),
+                        ("a > b", "a <= b"), ("a < b", "a >= b"),
+                        ("a == b", "a != b"), ("a != b", "a == b")]:
+        out = m.mutate(_site(src))
+        assert expect in out, f"{src} -> expected {expect}, got {out}"
+
+
 def test_llm_mutator_can_slot_in_unchanged():
     """The interface shape must permit an LLM mutator without signature change."""
     from adversary.mutators import DeterministicMutator

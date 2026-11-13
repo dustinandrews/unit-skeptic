@@ -15,6 +15,7 @@ whole-file diffs.
 This contract is stable so an LLM-based mutator can implement it unchanged.
 """
 from typing import Protocol, runtime_checkable
+import re
 
 
 @runtime_checkable
@@ -31,19 +32,32 @@ class DeterministicMutator:
 
     For a Compare site's text, flip a comparison operator to a behavior-changing
     counterpart. For a BoolOp site, flip `and` <-> `or`. No randomness.
+
+    Operators are matched as whole tokens (longest-first), so a `>` inside a
+    `>=` is never shredded into a malformed `<= =`.
     """
 
     _OPS = {
+        ">=": "<", "<=": ">",
         "==": "!=", "!=": "==",
-        "<": ">=", "<=": ">",
-        ">": "<=", ">=": "<",
+        ">": "<=", "<": ">=",
         "and": "or",
     }
+    # Longest operators first so regex alternation prefers `>=` over `>`.
+    _TOKEN = re.compile("|".join(re.escape(k) for k in _OPS))
 
     def mutate(self, site):
         text = site["text"]
         out = []
-        for a, b in self._OPS.items():
-            if a in text and a != b:
-                out.append(text.replace(a, b, 1))
+        seen = set()
+        for match in self._TOKEN.finditer(text):
+            token = match.group(0)
+            if token in seen:
+                continue
+            seen.add(token)
+            flip = self._OPS[token]
+            # Emit a candidate flipping THIS token occurrence.
+            cand = text[:match.start()] + flip + text[match.end():]
+            if cand != text:
+                out.append(cand)
         return out
