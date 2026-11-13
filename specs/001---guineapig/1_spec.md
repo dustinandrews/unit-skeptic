@@ -63,6 +63,11 @@ results are interpretable.
   (threshold edges, zero, negative rejection, empty collections).
 - **FR-005**: Test suite must pass deterministically and fast (< 2s, no network, no
   I/O, no randomness).
+- **FR-007**: The suite MUST include a cohort of deliberately weak/pointless tests
+  — e.g. tautologies (`assert True`), tests asserting a constant against itself,
+  or assertions that call no behavior — so later dead-test detection (Phase 2) has
+  verifiable ground truth. The README MUST enumerate exactly which tests are weak
+  and why, so the engine's dead-test flags can be scored against ground truth.
 - **FR-006**: A `README.md` documents the domain, each function's contract, and how to
   run the suite.
 
@@ -77,11 +82,13 @@ results are interpretable.
 - **SC-003**: Ground-truth known (artifact checklist, verified by reviewer
   inspection): README exists; documents each public function's contract; and
   enumerates the protected boundary cases (tier thresholds, zero, negative
-  rejection, half-penny rounding).
+  rejection, half-penny rounding); and enumerates the deliberate weak-test cohort
+  (FR-007).
 
 ## Out of Scope (this sprint)
 - The adversarial score engine itself (later sprints).
 - Any LLM wiring, docker, or mutation logic.
 
 ## Review Result
-STATUS: PASS (round 2; see 2_spec-review.md — round 1 passed with warnings applied).
+STATUS: PASS (round 3; rounds 1-2 in 2_spec-review.md — round 3 adds FR-007,
+deliberate weak-test cohort for Phase-2 dead-test ground truth).
