@@ -41,6 +41,50 @@ Shipped implementation: `DeterministicMutator` (rule-based operator flips:
 `==`↔`!=`, `<`↔`>=`, `<=`↔`>`, `and`↔`or`; whole-token matching, deterministic,
 zero LLM cost). An `LlmMutator` implements the same Protocol unchanged.
 
+## Survivor triage — JEV equivalence (`adversary equiv`)
+
+Surviving faults are either **real blind spots** (tests don't catch a genuine
+behavior change) or **equivalent mutants** (syntactically different,
+behaviorally identical — false positives). `adversary equiv` gives every
+survivor a cheap mechanical first pass: build two clean A/B code blocks and ask
+the JEV decision model (`typesafe/jev-1.14`) whether they are equivalent.
+
+```bash
+adversary equiv --subject /path/to/subject --survivors survivors.json \
+    [--out triage.json] [--confidence-cutoff 0.7] [--offline]
+```
+
+Each survivor gets `"label"` in {`equivalent`, `killable`, `undecided`} plus a
+confidence in [0,1]. Subject source is read-only (never modified).
+
+### A/B block builder (FR-002)
+
+- Site **inside a function** → Function A is the enclosing `def`-with-body;
+  Function B is the same function with the mutant `replacement` spliced at the
+  *translated* offsets (`start - func_start`, `end - func_start`).
+- Site at **module top level** → Function A is the enclosing statement block
+  (or the whole module if none).
+
+The two blocks are clean, self-contained code blocks — never a diff.
+
+### Decision seam (FR-003) + buckets (FR-004)
+
+Triage calls one injectable `decide(state, questions) -> normalized answers`.
+The real implementation is a thin adapter over the reused
+`triage-engine/src/jev/client.py` `JevClient` (imported lazily at the adapter
+boundary only; the API key travels solely in the Authorization header, never in
+state/questions/the body). Tests and `--offline` use a deterministic stub — no
+live provider in CI.
+
+Bucketing (single-source-of-truth thresholds in `adversary/equiv.py`):
+
+- high-confidence `equivalent` → **equivalent**
+- high-confidence `different` → **killable**
+- low confidence (or no valid answer) → **undecided** — never forced into one
+  of the other two, so a heavier partner model / human escalates only these.
+
+`--confidence-cutoff` overrides the default `CONFIDENCE_CUTOFF` (0.7).
+
 ## Modules
 
 - `sites.py` — AST site enumeration (`Compare`, `BoolOp`, call args, constants)
@@ -50,7 +94,9 @@ zero LLM cost). An `LlmMutator` implements the same Protocol unchanged.
   dir (the real repo is **never** modified; package `__init__.py` files are
   mirrored into the shadow so mutants actually load). Verdicts are mechanical.
 - `scorer.py` — loop, score formula, survivors JSON.
-- `cli.py` — `adversary score --subject <dir>`.
+- `equiv.py` — JEV equivalence triage: A/B block builder, decision seam,
+  confidence bucketing, triage driver.
+- `cli.py` — `adversary score --subject <dir>` + `adversary equiv ...`.
 
 ## Verdict taxonomy
 
@@ -62,5 +108,5 @@ zero LLM cost). An `LlmMutator` implements the same Protocol unchanged.
 ## Dev
 
 ```bash
-.venv/bin/python -m pytest -q -p no:cacheprovider   # 33 tests
+.venv/bin/python -m pytest -q -p no:cacheprovider   # 55 tests
 ```

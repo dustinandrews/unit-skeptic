@@ -49,4 +49,8 @@ decision seam, three buckets + confidence cutoff, CLI usage.
 **Accept:** section exists, accurate, examples runnable.
 
 ## Status
-review-draft (gates 1–3 PASS; awaiting tasks-review)
+implemented (T001–T005 complete; `adversary equiv` green). Tasks-review
+aggregated into this file sequentially: T001/T002 verified via `tests/test_equiv.py`,
+T003 via `tests/test_cli.py`, T004 via `tests/test_equiv_integration.py`
+(full suite: `55 passed`). SC-004 live-JEV pass recorded as a note in
+`research/spike-jev-equiv/NOTES.md` (not a gate; CI stays offline).

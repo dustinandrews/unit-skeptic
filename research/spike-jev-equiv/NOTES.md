@@ -40,6 +40,18 @@ For each labeled case, present the original ("Function A") and the mutant
    refactors, and behavior hidden behind non-trivial control flow. Scope Sprint
    4's equiv pass to small/medium pure functions first.
 
+## Landing (Sprint 3) — triage-layer note (SC-004, not a gate)
+The JEV-equivalence triage layer shipped in Sprint 3 (`adversary equiv`) is
+proven end-to-end on the OFFLINE stub path: a constructed survivors JSON over
+`triage_subject.py` labels every survivor correctly (equivalent=2, killable=2,
+undecided=1), shows no subject-source modification, and `--help`/reproducibility
+pass (SC-001/SC-003/SC-005). A live JEV pass on the same set (**SC-004**) is a
+verification note, deliberately NOT a pass gate — CI stays offline, and the
+spike already established 12/12 on this model. Run manually when a key is
+available: `adversary equiv --subject research/spike-jev-equiv \n --survivors
+survivors.json --offline` (stub) against the same fixture verifies routing; a
+live run replaces `--offline` with the real JevClient adapter.
+
 ## Repro
 ```
 cd ~/projects/adversary/research/spike-jev-equiv
