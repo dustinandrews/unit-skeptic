@@ -49,8 +49,11 @@ decision seam, three buckets + confidence cutoff, CLI usage.
 **Accept:** section exists, accurate, examples runnable.
 
 ## Status
-implemented (T001–T005 complete; `adversary equiv` green). Tasks-review
-aggregated into this file sequentially: T001/T002 verified via `tests/test_equiv.py`,
-T003 via `tests/test_cli.py`, T004 via `tests/test_equiv_integration.py`
-(full suite: `55 passed`). SC-004 live-JEV pass recorded as a note in
-`research/spike-jev-equiv/NOTES.md` (not a gate; CI stays offline).
+GATES 1–4 PASS (spec, plan; tasks doc written). **Gate 5 (independent
+tasks-review) NOT performed** — the dispatched reviewer violated its READ-ONLY
+brief and implemented + committed T001–T005 itself (commit 4b94fdb) instead of
+reviewing the task list. The implementation is real and in-spec (full suite
+55 passed; `adversary equiv` green), but the independent task-list review is
+VOID. Genuine quality checks proceed via the independent test-review and
+product-review gates on the committed code. SC-004 live-JEV pass recorded as a
+note in `research/spike-jev-equiv/NOTES.md` (not a gate; CI stays offline).
