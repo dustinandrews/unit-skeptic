@@ -50,15 +50,17 @@ adversary/
    → `killable`, low-confidence → `undecided` (FR-004); verify `undecided`
    never collapses to the other two (SC-003); verify triage of a constructed
    survivors JSON gets every label right and every survivor in exactly one
-   bucket (SC-001). Observe RED. Approve test set. Implement the seam + driver
-   + bucketing GREEN. [T002 — P1]
+ bucket (SC-001). Add an adapter-boundary assertion: the request body built
+ for the seam contains NO API-key literal (key hygiene, FR-003 — inherited
+ from JevClient, asserted at our boundary). Observe RED. Approve test set.
+ Implement the seam + driver + bucketing GREEN. [T002 — P1]
 
 ### Phase 3 — cli.py `adversary equiv` (RED → GREEN)
 3. Write `tests/test_cli.py` (equiv section) for `adversary equiv --subject
    <dir> --survivors <s.json> [--out <triage.json>] [--confidence-cutoff <x>]`:
    requires a subject + survivors file; emits a triage JSON; reproducible on
-   re-run (FR-005/FR-006). Observe RED. Implement the `equiv` subcommand wiring
-   GREEN. [T003 — P1]
+   re-run AND with survivor ordering preserved from input (FR-005/FR-006).
+   Observe RED. Implement the `equiv` subcommand wiring GREEN. [T003 — P1]
    *Reproducibility assertion folded into this task's tests (FR-006/SC-005).*
 
 ### Phase 4 — Integration + ground-truth verification
@@ -86,4 +88,4 @@ adversary/
   with 2 warnings applied.
 
 ## Review Result
-STATUS: Draft — pending plan review.
+STATUS: PASS (round 1; 2 low-severity recommendations applied — see 4_plan-review.md)
