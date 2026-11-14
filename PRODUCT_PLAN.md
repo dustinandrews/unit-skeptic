@@ -23,6 +23,10 @@ surviving faults = the actionable gap list; dead tests = detectable noise).
   Mutator contract unchanged.
 
 ## Next (ordered)
-1. Sprint 3 — LLM Andy driver (swappable, stateless) producing richer faults.
-2. Sprint 4 — Equivalence triage on survivors (the real work beyond LLMorpheus).
+1. Sprint 3 — JEV equivalence triage on survivors: cheap JEV (typesafe/jev-1.14)
+   pass labeling each survivor equivalent | killable | undecided, reusing the
+   triage-engine JevClient port. De-risked by spike (12/12 exact on A/B blocks).
+2. Sprint 4 — LLM "Andy" driver (swappable, stateless) producing richer faults,
+   blind to tests, sandboxed; landed after equilibrium triage so its noisier
+   survivors are filterable.
 3. Sprint 5 — Dead-test detection (Phase 2): flag tests that never kill a fault.
