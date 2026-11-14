@@ -208,6 +208,24 @@ def test_offline_decide_matches_scripted_integration():
     assert norm["equivalence"]["confidence"] == 0.0
 
 
+def test_confidence_cutoff_change_rebuckets_a_survivor():
+    """FR-004: a configurable cutoff must actually change bucketing.
+
+    A 'different' answer at 0.6 conf is undecided at the default cutoff (0.7)
+    but killable when the cutoff is lowered to 0.5 — proving the flag re-buckets.
+    """
+    assert equiv.bucket_label("different", 0.6, equiv.CONFIDENCE_CUTOFF) == "undecided"
+    assert equiv.bucket_label("different", 0.6, 0.5) == "killable"
+    # And through the triage driver with a custom cutoff.
+    decide = _scripted(("different", 0.6))
+    recs_default = equiv.triage(_survivors(), {"m.py": _src()}.__getitem__,
+                                decide=decide, confidence_cutoff=equiv.CONFIDENCE_CUTOFF)
+    recs_low = equiv.triage(_survivors(), {"m.py": _src()}.__getitem__,
+                            decide=decide, confidence_cutoff=0.5)
+    assert recs_default[0]["label"] == "undecided"
+    assert recs_low[0]["label"] == "killable"
+
+
 def test_request_payload_never_contains_key_literal():
     """FR-003 key hygiene at our adapter boundary: the request body the seam
     builds carries NO API-key literal, even with a key present in the env."""

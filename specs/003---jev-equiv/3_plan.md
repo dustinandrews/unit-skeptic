@@ -88,4 +88,5 @@ adversary/
   with 2 warnings applied.
 
 ## Review Result
-STATUS: PASS (round 1; 2 low-severity recommendations applied — see 4_plan-review.md)
+STATUS: PASS (round 1; 2 low-severity recommendations applied — see 4_plan-review.md
+and 7_test-review.md finding #5 which closed the --confidence-cutoff functional gap).

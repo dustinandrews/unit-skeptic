@@ -7,6 +7,13 @@
 - `guineapig/`: pure-Python pricing package (5 functions), stdlib + pytest only.
 - Test suite: 33 tests (29 boundary + 4 deliberate weak), 100% line coverage, < 2s.
 
+## Equivalence triage (sprint 3 — shipped)
+- `adversary equiv`: A/B block builder (enclosing function, both in-function and
+  top-level-site cases, translated offsets), injectable decision seam (real
+  adapter wraps triage-engine `src/jev/client.py` JevClient; deterministic
+  offline stub for CI), 3-bucket confidence bucketing (equivalent/killable/
+  undecided), triage JSON output. Reads survivors JSON + subject source only.
+
 ## Score instrument (sprint 2 — shipped)
 - `adversary/`: standalone package (own pyproject + venv). Modules: `sites.py`
   (AST site finder with char offsets), `mutators.py` (`Mutator` Protocol +
