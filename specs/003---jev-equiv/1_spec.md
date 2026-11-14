@@ -62,9 +62,14 @@ Low-confidence triage must not be silently trusted as a final say.
   JSON adding, per survivor, `"label"` in {`equivalent`, `killable`,
   `undecided`} and `"confidence"` in [0,1].
 - **FR-002**: **A/B block builder**: given module source + a site (start/end,
-  orig, replacement), extract the **enclosing function/statement** as Function A
-  (original) and Function B (A with `replacement` spliced at [start,end)).
-  Pure, tested against real guineapig source.
+  orig, replacement), extract the **enclosing function** (def-with-body) as
+  Function A (original) and Function B (A with `replacement` spliced). Two
+  cases defined: (a) the site falls inside a function — Function A is that
+  function's source text; (b) the site is at module top level — Function A is
+  the enclosing statement block (or the whole module if none). Offsets for the
+  splice are translated to the function-local span: `start - func_start`,
+  `end - func_start`, where `func_start` is the enclosing function's char
+  offset in the module source. Pure, tested against real guineapig source.
 - **FR-003**: **Decision seam**: triage calls a single injectable `decide(state,
   questions) -> normalized answers` callable. The real implementation wraps the
   existing `triage-engine/src/jev/client.py` `JevClient` (key read indirectly
@@ -93,9 +98,10 @@ Low-confidence triage must not be silently trusted as a final say.
 - **SC-001**: With an offline stub decision source, a constructed survivors JSON
   containing known equivalent + known killable survivors triages with every
   label correct and every survivor assigned to exactly one of the three buckets.
-- **SC-002**: A/B block builder is verified: embedding real guineapig source +
-  a known site yields Function B that differs from Function A ONLY at the site
-  (splice-correct), asserted in tests.
+- **SC-002**: A/B block builder is verified in BOTH defined cases (FR-002):
+  embedding real guineapig source + a known in-function site, AND a top-level
+  site, each yields Function B that differs from Function A ONLY at the site
+  (splice-correct with translated offsets), asserted in tests.
 - **SC-003**: `undecided` never maps to equivalent or killable (FR-004 low-
   confidence path covered by a test).
 - **SC-004**: Live JEV on a labeled verification set (reusing the spike's case
