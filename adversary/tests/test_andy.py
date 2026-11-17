@@ -98,6 +98,24 @@ def test_parse_reply_fenced_fallback_when_no_tags():
     assert andy.parse_reply(reply, "n > 0") == ["n < 0"]
 
 
+def test_parse_reply_fenced_fallback_dedupes_empty_and_identity():
+    """G5: the fenced fallback branch must filter dupes/empties/identity.
+
+    The tag branch filters `s and s != orig and s not in cands`; the fenced
+    fallback uses the same filter but was only ever tested with a single valid
+    block. Feed it a duplicate, an empty block, and the identity-original so a
+    weakened (or) filter leaks all three through.
+    """
+    reply = (
+        "```python\nn < 0\n```\n"
+        "```python\nn < 0\n```\n"          # duplicate
+        "```python\n\n```\n"                # empty
+        "```python\nn > 0\n```\n"          # identity-original
+        "```python\nnot n > 0\n```\n"
+    )
+    assert andy.parse_reply(reply, "n > 0") == ["n < 0", "not n > 0"]
+
+
 def test_parse_reply_empty_and_garbage():
     assert andy.parse_reply("", "n > 0") == []
     assert andy.parse_reply("no snippets here", "n > 0") == []
@@ -190,6 +208,79 @@ def test_real_complete_requires_key():
         assert False, "expected RuntimeError when no key configured"
     except RuntimeError as e:
         assert "OPENROUTER_API_KEY" in str(e)
+
+
+# ---------------------------------------------------------------------------
+# Transport contract (Sprint 6 hardening; G1 verb / G3 timeout / G4 endpoint /
+# FR-002 Content-Type). G2 (utf8-vs-ascii encoding) is an EQUIVALENT mutant
+# under json.dumps(ensure_ascii=True) — byte-identical output, documented only.
+# ---------------------------------------------------------------------------
+
+def test_real_complete_transport_uses_http_post_method_and_60s_timeout(monkeypatch):
+    r"""G1/G3: the real _http_post must issue an HTTP POST with a 60s timeout.
+
+    The verb and timeout live inside _http_post (Request(method='POST') and
+    urlopen(..., timeout=60)), invisible to an injected fake http_post, so we
+    patch andy.urllib.request.urlopen (module-level import) and inspect the
+    Request it receives.
+    """
+    captured = {}
+
+    class FakeUrlopen:
+        def __call__(self, req, timeout):
+            captured["req"] = req
+            captured["timeout"] = timeout
+            return self
+
+        def __enter__(self):
+            return _FakeResp()
+
+        def __exit__(self, *exc):
+            return False
+
+    class _FakeResp:
+        def read(self):
+            return json.dumps(
+                {"choices": [{"message": {"content": "<snippet>x</snippet>"}}]}
+            ).encode("utf-8")
+
+    monkeypatch.setattr(andy.urllib.request, "urlopen", FakeUrlopen())
+    out = andy.real_complete("probe prompt", model="m/1", api_key="k")
+    assert out == "<snippet>x</snippet>"
+    assert captured["req"].get_method() == "POST"
+    assert captured["timeout"] == 60
+
+
+def test_real_complete_sets_content_type_and_body_roundtrips():
+    r"""FR-002: the request must declare JSON content type and carry the prompt.
+
+    Body round-trips via json.loads(body.decode()) — un-escapes \uXXXX back to
+    the original prompt. No utf8/ascii distinction is attempted (G2 equivalent).
+    """
+    captured = {}
+
+    def fake_post(url, body, headers):
+        captured["url"], captured["body"], captured["headers"] = url, body, headers
+        return json.dumps({"choices": [{"message": {"content": "<snippet>x</snippet>"}}]})
+
+    prompt = "probe \u2026 prompt"  # non-ASCII char
+    out = andy.real_complete(prompt, model="m/1", api_key="k", http_post=fake_post)
+    assert out == "<snippet>x</snippet>"
+    assert captured["headers"]["Content-Type"] == "application/json"
+    body = captured["body"].decode("utf-8")
+    assert json.loads(body)["messages"][0]["content"] == prompt
+
+
+def test_real_complete_uses_openrouter_endpoint():
+    """G4: real_complete must target the OpenRouter endpoint by default."""
+    captured = {}
+
+    def fake_post(url, body, headers):
+        captured["url"] = url
+        return json.dumps({"choices": [{"message": {"content": "<snippet>x</snippet>"}}]})
+
+    andy.real_complete("probe prompt", model="m/1", api_key="k", http_post=fake_post)
+    assert captured["url"] == andy.OPENROUTER_ENDPOINT
 
 
 # ---------------------------------------------------------------------------
