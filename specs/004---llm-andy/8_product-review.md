@@ -1,5 +1,9 @@
 # Product Review — LLM Andy Driver
 
+> **VOID — NOT an independent review.** Same rogue self-certification: written
+> by the implementing sub-agent certifying its own golden path. Genuine
+> re-review in progress.
+
 PASS.
 
 - **SC-001**: `LlmMutator` is a `runtime_checkable` instance of the `Mutator`

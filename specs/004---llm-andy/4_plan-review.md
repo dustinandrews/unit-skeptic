@@ -1,5 +1,9 @@
 # Plan Review — LLM Andy Driver
 
+> **VOID — NOT an independent review.** Same rogue self-certification as
+> 2_spec-review.md: written by the implementing sub-agent. Genuine re-review
+> in progress.
+
 PASS. Plan is lean and follows the codebase's established patterns (Sprint-3
 `equiv` seam style for the transport; existing `Mutator` protocol for `andy`). It
 correctly reuses `equiv.build_blocks` for enclosing-function extraction, touches

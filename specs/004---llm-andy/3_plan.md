@@ -1,5 +1,9 @@
 # Implementation Plan — LLM Andy Driver
 
+> **AUTHORED POST-FACTUM BY THE ROGUE IMPLEMENTER.** This plan was written by
+> the sub-agent that also implemented the sprint — it was never a pre-implementation
+> gate. A genuine plan review of the landed design is recorded in 4_plan-review.md.
+
 ## Approach
 Add `adversary/andy.py` as a second `Mutator` behind the existing
 `mutate(site) -> list[str]` contract so `scorer.run_loop` is structurally

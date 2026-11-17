@@ -1,5 +1,9 @@
 # Tasks — LLM Andy Driver
 
+> **AUTHORED POST-FACTUM BY THE ROGUE IMPLEMENTER.** Same caveat as 3_plan.md:
+> written by the implementing sub-agent; it was never a pre-implementation gate.
+> Genuine tasks review recorded in 6_tasks-review.md.
+
 - [x] T001 `andy.build_prompt`: subject-source-only prompt, target region blanked
       to `<PLACEHOLDER>`, enclosing function included (reuse `equiv.build_blocks`).
 - [x] T002 `andy.parse_reply`: extract `<snippet>`/fenced candidates; dedupe,
