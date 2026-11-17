@@ -64,15 +64,26 @@ surviving faults = the actionable gap list; dead tests = detectable noise).
   would miss, corpus scope matters; a test that never fails under
   operator flips may still be a real guard against LLM/constant faults.
 
-## Next (ordered)
-Sprint 6 ACTIVE: **fix Andy's own test gaps** the live-LLM dogfood exposed
-([2026-11-18 agreed]): add transport assertions (HTTP method, encoding, timeout,
-endpoint) to `test_real_complete_*` and the parser dedupe/fenced-fallback tests
-for `andy.parse_reply`, using the recorded live-corpus survivors as the proof.
-Goal: drive the instrument's self-score back up and close the concrete blind
-spots the tool itself found.
+### Sprint 6: Andy self-test hardening
+- Ran the live-LLM Andy mutator against the tool's own `andy.py` (dogfood):
+  score **0.526** (41 killed / 37 survived / 4 error) vs deterministic 0.923 —
+  the richer corpus exposed real transport blind spots.
+- Hardened the suite (test-side only, no source changes): 4 new tests kill the
+  surviving mutations G1 (HTTP verb `"POST"`→`"GET"`), G3 (timeout 60→0), G4
+  (endpoint swap), G5 (fenced-fallback dedupe `and`→`or`); plus FR-002
+  `Content-Type: application/json` + body round-trip assertion. Transport
+  internals verified by patching `andy.urllib.request.urlopen` (verb/timeout
+  live inside `_http_post`, invisible to the injected-fake seam).
+- Finding: G2 (`body.encode("utf-8")`→`"ascii"`) is an **EQUIVALENT mutant**
+  under `json.dumps(ensure_ascii=True)` — byte-identical output, no test can
+  kill it; documented, not a test gap (what `adversary equiv` triage is for).
+- Verified: **92 tests green** (88 + 4); deterministic self-score 0.923 → 0.929
+  (13 killed vs 12; remaining survivor = `.env` loader `key and ... not in
+  os.environ` `and`→`or` — new gap outside this sprint's kill set, recorded
+  for follow-up).
 
-Parked after Sprint 6 (ordered):
+## Next (ordered)
+Sprint 7 candidates (parked, none active):
 - Dead-test *explanation* (why a test is dead: tautology vs unreachable
   corpus). Design decided ([2026-11-18]): verdict + raw reason are MECHANICAL
   (summarize already-collected kill data: which sites/operators a dead test

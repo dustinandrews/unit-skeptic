@@ -51,6 +51,20 @@
   mirrored into the shadow so mutants actually load. Local pytest subprocess
   (docker sandbox deferred, sprint 3+).
 
+## Self-test hardening (sprint 6, shipped)
+- Live-LLM dogfood of `andy.py`: score 0.526 (41 killed / 37 survived / 4 error)
+  vs deterministic 0.923 — richer corpus exposed real transport blind spots.
+- Test-side only (no source changes): 4 new tests in `tests/test_andy.py` kill
+  G1 (verb `"POST"`→`"GET"`), G3 (timeout 60→0), G4 (endpoint swap), G5
+  (fenced-fallback dedupe `and`→`or`); plus FR-002 `Content-Type` + body
+  round-trip assertion. Verb/timeout verified by patching
+  `andy.urllib.request.urlopen` (they live inside `_http_post`, invisible to
+  the injected-fake seam).
+- G2 (`encode("utf-8")`→`"ascii"`) = EQUIVALENT under `json.dumps(ensure_ascii=True)`;
+  documented, not killable (byte-identical output).
+- 92 tests green; deterministic self-score 0.923 → 0.929 (13/14 kills; the one
+  survivor = `.env` loader `and`→`or`, new gap for follow-up).
+
 ## Dependencies
 - Guinea-pig: none beyond stdlib + pytest.
 - Instrument: stdlib (AST, subprocess, tempfile, json) + pytest for dev.
