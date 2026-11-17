@@ -14,16 +14,29 @@ live-LLM self-score rises and the specific gaps close.
 
 Recorded surviving mutations (evidence), grouped by cause:
 
-| # | Surviving fault | Root cause gap |
-|---|-----------------|----------------|
-| G1 | transport HTTP verb `"POST"` -> `"GET"` | `test_real_complete_*` capture `url/body/headers` via `fake_post` but never assert the verb, encoding, timeout, or endpoint. |
-| G2 | `body.encode("utf-8")` -> `"ascii"` | same: encoding never asserted. |
-| G3 | timeout `60` -> `0` | timeout lives in `_http_post` default; health-check/broker tests never exercise wall-clock. |
-| G4 | endpoint swap | endpoint is a `real_complete` default arg, never asserted equals `OPENROUTER_ENDPOINT`. |
-| G5 | reply-parser dedupe `s and s != orig and s not in cands` -> `s or s != orig and s not in cands` (fenced-fallback branch) | `test_parse_reply_fenced_fallback_when_no_tags` feeds a single valid block; the dup/identity/empty filtering in the fenced branch is never exercised. (Tag branch mutation IS killed by `test_parse_reply_dedupes...`.) |
+| # | Surviving fault | Root cause gap | Verdict |
+|---|-----------------|----------------|---------|
+| G1 | transport HTTP verb `"POST"` -> `"GET"` | `test_real_complete_*` capture `url/body/headers` via `fake_post` but never assert the verb, timeout, or endpoint. | KILL (test-side) |
+| G2 | `body.encode("utf-8")` -> `"ascii"` | **EQUIVALENT, not a test gap** (see below). | DOCUMENT only |
+| G3 | timeout `60` -> `0` | timeout lives in `_http_post` default; tests never exercise wall-clock. | KILL (test-side) |
+| G4 | endpoint swap | endpoint is a `real_complete` default arg, never asserted equals `OPENROUTER_ENDPOINT`. | KILL (test-side) |
+| G5 | reply-parser dedupe `s and s != orig and s not in cands` -> `s or s != orig and s not in cands` (fenced-fallback branch) | `test_parse_reply_fenced_fallback_when_no_tags` feeds a single valid block; the dup/identity/empty filtering in the fenced branch is never exercised. (Tag branch mutation IS killed by `test_parse_reply_dedupes...`.) | KILL (test-side) |
 
-Goal: every row above becomes red in TDD (a test that fails on the mutant),
-i.e. the new tests kill G1–G5.
+**G2 is an equivalent mutant, not a test gap.** `json.dumps` defaults to
+`ensure_ascii=True`, so any non-ASCII character in the prompt/body is emitted as
+an ASCII `\uXXXX` escape; the encoded body is therefore always 100% ASCII. Under
+that default, `.encode("utf-8")` and `.encode("ascii")` produce byte-identical
+output (empirically verified), so no black-box test can distinguish them, and
+the original (correct) warning that a raw non-ASCII char is never present means
+the mutation is behavior-preserving. This is precisely the case the tool's own
+JEV `equiv` triage labels **"equivalent"** — a survivor that is NOT test
+theatre. Killing it would require a source change (`ensure_ascii=False`), which
+is out of scope (non-goal: no source edits) and not clearly desirable (ASCII-safe
+bodies are valid). It is recorded here as a documented false positive that
+`adversary equiv` would correctly triage.
+
+Goal: every KILL row above becomes red in TDD (a test that fails on the mutant),
+i.e. the new tests kill G1, G3, G4, G5. G2 stays as documentation.
 
 ## Non-goals (YAGNI)
 - NOT fixing `andy.py` source — it is correct; the suite needs to *prove* it.
@@ -37,17 +50,17 @@ i.e. the new tests kill G1–G5.
 ### User Story 1 - Andy's suite kills its own transport mutations (P1)
 An engineer runs the Andy mutator against `andy.py`. Faults that would change
 the HTTP method to `GET`, encode the body as `ascii`, set timeout to 0, or swap
-the endpoint must be **killed** (fail ≥1 test), not survive.
+- the endpoint must be **killed** (fail ≥1 test), not survive, and the request
+  must carry the correct `Content-Type: application/json` header (a genuine
+  transport-contract assertion the current suite omits).
 
 **Acceptance Scenarios:**
 1. **Given** a mutant replacing `"POST"` with `"GET"` in `_http_post`, **When**
    the suite runs `real_complete` with `andy.urllib.request.urlopen` patched to
    capture the `Request`, **Then** the captured request `get_method()` is
    asserted `== "POST"` and that test fails under the mutant. (G1)
-2. **Given** a mutant changing `body.encode("utf-8")` to `.encode("ascii")`,
-   and the transport test uses a prompt containing a non-ASCII character,
-   **When** the suite runs, **Then** the `.encode("ascii")` mutant raises and
-   ≥1 test fails. (G2)
+2. *(G2 removed as a kill target — equivalent mutant under `ensure_ascii=True`,
+   documented in the Evidence table; not a test gap.)*
 3. **Given** a mutant setting the connection timeout to `0` **When** the suite
    runs `real_complete` with `andy.urllib.request.urlopen` patched to record the
    `timeout` kwarg, **Then** the recorded timeout is asserted `== 60` and that
@@ -75,10 +88,13 @@ must be killed.
   `OPENROUTER_ENDPOINT` and uses method `POST`, by capturing the `Request` via
   a patched `andy.urllib.request.urlopen` and asserting `request.get_method()
   == "POST"`.
-- **FR-002**: The transport scheme test MUST assert the request body is
-  UTF-8-encoded JSON (NOT ASCII) and the headers set `Content-Type:
-  application/json`. To make the encoding observable, the prompt MUST contain a
-  non-ASCII character so an `.encode("ascii")` mutant raises.
+- **FR-002**: The transport tests MUST assert the captured request carries the
+  `Content-Type: application/json` header (a genuine transport-contract check
+  the current suite omits — it only asserts `Authorization`). The body is
+  asserted to be JSON that round-trips via
+  `json.loads(body.decode())` (un-escapes `\uXXXX` back to the original prompt).
+  No assertion is made that distinguishes UTF-8 from ASCII encoding, because
+  the mutation is equivalent under `ensure_ascii=True` (no test can — see G2).
 - **FR-003**: The transport tests MUST pin `_http_post`'s connection timeout to
   `60` by patching `andy.urllib.request.urlopen` to record and assert the
   `timeout` kwarg.
@@ -97,9 +113,12 @@ must be killed.
 - **NFR-002**: Test count increases; all existing 88 tests still green.
 
 ## Success Criteria
-- **SC-001**: ≥5 new tests, each mapping 1:1 to one of G1–G5, that FAIL with the
-  corresponding mutant injected (verified by running the mutated copy).
-- **SC-002**: Full suite green on `main` baseline + new tests (expect 92–94 passed).
+- **SC-001**: ≥4 new tests, each mapping 1:1 to one of G1, G3, G4, G5 (the
+  KILL rows), that FAIL with the corresponding mutant injected (verified by
+  running the mutated copy), plus the FR-002 `Content-Type`/body round-trip
+  assertion. G2 is NOT part of SC-001 (equivalent mutant — documented).
+- **SC-002**: Full suite green on `main` baseline + new tests (expect 92–93 passed:
+  88 baseline + 4–5 new transport/parser tests).
 - **SC-003** (reported, not gating): report the live-Andy self-score on
   `andy.py` after this sprint (deterministic baseline 0.923; live baseline
   0.526). Live score is stochastic (model + network may not re-propose these
@@ -109,5 +128,8 @@ must be killed.
   expected reason), then GREEN.
 
 ## Review Result
-STATUS: COMPLETE (spec-review PASS, deleg_129e635c 2026-11-18; all blockers
-resolved per 2_spec-review.md)
+STATUS: COMPLETE (spec-review PASS deleg_129e635c; revised 2026-11-18 after
+plan-review deleg_8c7fd1c0 empirically disproved G2's test-side killability:
+G2 reclassified as EQUIVALENT mutant under ensure_ascii=True — documented false
+positive; kill set is now G1/G3/G4/G5 + FR-002 Content-Type assertion; SC-001/2
+updated)
