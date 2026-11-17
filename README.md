@@ -6,6 +6,11 @@ actually catches faults, not how many tests are green.
 > **Status: rough but promising.** Under active development. It works
 > end-to-end on its own codebase and a small guinea-pig subject, but expect
 > rough edges, API churn, and missing polish. Feedback and issues welcome.
+>
+> **How it's being built.** So far development has been driven by an AI coding
+> agent (DeepSeek v4) working with the author entirely over Telegram — a live
+> test of the very idea this tool probes: an agent builds and tests its own
+> software through a constrained, adversarial relationship with the code.
 
 ## What it is
 
