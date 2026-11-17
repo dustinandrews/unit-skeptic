@@ -109,6 +109,5 @@ must be killed.
   expected reason), then GREEN.
 
 ## Review Result
-STATUS: Revised (addressing review blockers: urlopen-patch seam for G1/G3
-method+timeout; non-ASCII prompt for G2 encoding; empty block added to US2 AS1;
-SC-003 demoted to reported-not-gating). Re-review pending.
+STATUS: COMPLETE (spec-review PASS, deleg_129e635c 2026-11-18; all blockers
+resolved per 2_spec-review.md)
