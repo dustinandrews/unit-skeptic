@@ -1,8 +1,8 @@
 # Tasks — Dead-Test Detection (Sprint 5)
 
 ## Status
-Gates 1–2 PASS (spec-review PASS + 4 warnings applied; plan-review PASS +
-nodeid pin applied).
+Gates 1–3 PASS (spec-review PASS + 4 warnings; plan-review PASS + nodeid pin;
+tasks-review PASS — categorized done). Start T001 implementation.
 
 - [ ] T001 runner per-test attribution: `run_mutant` optional `junit_path`
       (absolute only), parse junit failures BEFORE rmtree cleanup, return
@@ -25,5 +25,4 @@ nodeid pin applied).
       TECH_STACK updated; commit on `sprint-5-dead-tests`.
 
 ## Review Result
-Draft — pending tasks review. Distribution per plan T001–T004; delete-bloat
-only; RED-before-GREEN preserved in T001–T003.
+STATUS: PASS (6_tasks-review.md)
