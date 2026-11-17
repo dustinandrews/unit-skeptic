@@ -82,11 +82,10 @@ adversary/tests/test_andy.py  # +5 new tests (T001–T005), under the existing
    documented equivalent survivor (triaged `equivalent` by JEV equiv). Not a
    committed unit test — a verification run (SC-001/SC-002).
 6. **T006 — docs/plan/stack** (P2) update `TECH_STACK.md` "test hardening" note
-   and `PRODUCT_PLAN.md` "Done" (Sprint 6), test count 88 → 93, self-score
-   impact, and the G2-equivalence finding. Re-run full suite (expect 93 passed).
+   and `PRODUCT_PLAN.md` "Done" (Sprint 6), test count 88 → 92, self-score
+   impact, and the G2-equivalence finding. Re-run full suite (expect 92 passed).
 
 ## Review Result
-STATUS: Revised (plan-review deleg_8c7fd1c0 FAIL → T002 rewritten from an
-impossible encoding assertion to the genuine Content-Type/body round-trip
-check; G2 dropped from kill scope as equivalent; expect 93 passed). Re-review
-pending.
+STATUS: COMPLETE (plan-review PASS deleg_71e2c823 2026-11-18; count corrected
+to 92 = 88 baseline + 4 committed tests T001-T004; T005 verification run, T006
+docs; G2 documented-equivalent, kill set G1/G3/G4/G5)
