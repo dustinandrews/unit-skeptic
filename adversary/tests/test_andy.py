@@ -262,3 +262,24 @@ def test_cli_main_llm_offline_via_argv(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     rc = _run("score", "--subject", subject, "--mutator", "llm", "--offline")
     assert rc == 0
+
+
+def test_andy_imports_stdlib_only():
+    """NFR-001: andy.py ships no third-party runtime imports.
+
+    Only stdlib modules (plus the in-repo adversary.equiv) may appear in
+    andy.py's import set. AST-audits the source so the constraint is a
+    regression guard, not true-by-inspection.
+    """
+    import ast
+    import pathlib
+    allowed = {"adversary", "json", "os", "re", "urllib"}
+    tree = ast.parse(pathlib.Path(andy.__file__).read_text())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                root = alias.name.split(".")[0]
+                assert root in allowed, f"non-stdlib import in andy.py: {alias.name}"
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            root = node.module.split(".")[0]
+            assert root in allowed, f"non-stdlib import in andy.py: {node.module}"
