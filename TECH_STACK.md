@@ -14,6 +14,23 @@
   offline stub for CI), 3-bucket confidence bucketing (equivalent/killable/
   undecided), triage JSON output. Reads survivors JSON + subject source only.
 
+## LLM Andy driver (sprint 4 — shipped)
+- `adversary/andy.py`: `LlmMutator` — second `Mutator` implementation behind the
+  same adapter contract (`mutate(site) -> list[str]`), driving `scorer.run_loop`
+  with zero structural change. Blind by design: prompt built from subject source
+  ONLY (enclosing function, target region blanked to `<PLACEHOLDER>` via the
+  Sprint-3 `equiv.build_blocks` extraction); tests/coverage/verdicts/survivors
+  never appear.
+- Injectable `complete(prompt) -> str` transport seam: real impl calls the
+  OpenRouter chat-completions endpoint via stdlib urllib (no SDK, NFR-001); key
+  read from env, travels only in the Authorization header (FR-003). Deterministic
+  scripted offline stub for CI (NFR-003). Candidates deduped/non-empty/must-differ
+  (FR-004).
+- CLI: `adversary score --subject <dir> [--mutator deterministic|llm]
+  [--model <id>] [--trials-per-site <n>] [--offline]`. Default `deterministic`
+  is backward compatible. Survivors JSON + score line gain `mutator`/`model`
+  (FR-006).
+
 ## Score instrument (sprint 2 — shipped)
 - `adversary/`: standalone package (own pyproject + venv). Modules: `sites.py`
   (AST site finder with char offsets), `mutators.py` (`Mutator` Protocol +

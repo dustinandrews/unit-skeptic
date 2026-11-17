@@ -17,7 +17,8 @@ def compute_score(verdicts):
 
 
 def run_loop(subject_dir, src_dir, sites, mutator, source,
-             module_rel=None, run_mutant_impl=None, out_path=None):
+             module_rel=None, run_mutant_impl=None, out_path=None,
+             record_attrs=None):
     """Run the full A->C loop over sites and record verdicts.
 
     For each site, ask the mutator for replacement candidates; for each distinct
@@ -28,6 +29,7 @@ def run_loop(subject_dir, src_dir, sites, mutator, source,
     if run_mutant_impl is None:
         from adversary import runner
         run_mutant_impl = lambda d, mr, ms, src_dir=src_dir: runner.run_mutant(d, mr, ms, src_dir=src_dir)
+    record_attrs = record_attrs or {}
     records = []
     for site in sites:
         orig = site["text"]
@@ -36,14 +38,16 @@ def run_loop(subject_dir, src_dir, sites, mutator, source,
             if mutated == source:
                 continue
             verdict = run_mutant_impl(subject_dir, module_rel or "<module>", mutated)
-            records.append({
+            rec = {
                 "path": site.get("module", "<string>"),
                 "start": site["start"],
                 "end": site["end"],
                 "orig": orig,
                 "replacement": replacement,
                 "verdict": verdict,
-            })
+            }
+            rec.update(record_attrs)
+            records.append(rec)
     if out_path:
         with open(out_path, "w") as fh:
             json.dump(records, fh, indent=2)

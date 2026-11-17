@@ -33,6 +33,20 @@ surviving faults = the actionable gap list; dead tests = detectable noise).
   labels all survivors correctly, reproducible, repo untouched. JEV accuracy
   de-risked by spike (12/12 exact incl. half-penny edge).
 
+### Sprint 4: LLM "Andy" driver
+- `adversary/andy.py`: `LlmMutator` — second `Mutator` behind the same
+  `mutate(site) -> list[str]` contract, so `scorer.run_loop` is untouched. Blind
+  one-shot per site: prompt = enclosing function with target region blanked to
+  `<PLACEHOLDER>` (subject source only, reusing Sprint-3 block builder); never
+  tests/coverage/verdicts/survivors.
+- Injectable `complete(prompt) -> str` seam: OpenRouter via stdlib urllib
+  (configurable `--model`, key in header only), deterministic offline stub for
+  CI. CLI `--mutator llm [--model --trials-per-site --offline]`; default stays
+  deterministic (backward compatible). Survivors + score line carry
+  `mutator`/`model`.
+- Verified: 76 tests green. Offline end-to-end on guineapig prints
+  `mutator=llm model=openrouter/auto` and runs the full A→C loop; deterministic
+  run unchanged (score 1.000, 17 killed, 0 survived).
+
 ## Next (ordered)
-1. Sprint 4 — LLM "Andy" driver — IN PROGRESS: spec drafted 2026-11-14.
-2. Sprint 5 — Dead-test detection (Phase 2): flag tests that never kill a fault.
+1. Sprint 5 — Dead-test detection (Phase 2): flag tests that never kill a fault.

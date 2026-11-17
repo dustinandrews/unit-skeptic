@@ -10,7 +10,7 @@ import json
 import os
 import sys
 
-from adversary import equiv, runner, scorer, sites
+from adversary import andy, equiv, runner, scorer, sites
 from adversary.mutators import DeterministicMutator
 
 
@@ -25,8 +25,15 @@ def _find_py_module(subject_dir, src_rel="src"):
     return None, None
 
 
-def run_score(subject_dir):
-    """Green gate -> enumerate sites -> loop -> print score. Returns exit code."""
+def run_score(subject_dir, mutator="deterministic", model=None, trials=1,
+              offline=False):
+    """Green gate -> enumerate sites -> loop -> print score. Returns exit code.
+
+    ``--mutator`` selects the fault generator: ``deterministic`` (default,
+    backward compatible) or ``llm`` (Andy). For ``llm``, ``model`` selects the
+    OpenRouter model id and ``offline`` swaps the transport for a deterministic
+    scripted stub so the pipeline runs with no network/key (FR-005 / SC-002).
+    """
     src_dir, module_rel = _find_py_module(subject_dir)
     if module_rel is None:
         print(f"adversary: no python module under {subject_dir}/src", file=sys.stderr)
@@ -48,15 +55,26 @@ def run_score(subject_dir):
     # B/C. enumerate, mutate, run, score
     site_list = sites.find_sites(source, module=module_rel)
     print(f"B: {len(site_list)} sites")
-    mutator = DeterministicMutator()
-    records = scorer.run_loop(subject_dir, src_dir, site_list, mutator, source,
+    if mutator == "llm":
+        model_id = model or andy.DEFAULT_MODEL
+        gen = andy.LlmMutator(source, model=model_id, trials=trials,
+                              complete=andy.offline_complete if offline else None)
+    else:
+        mutator, model_id = "deterministic", model or ""
+        gen = DeterministicMutator()
+    records = scorer.run_loop(subject_dir, src_dir, site_list, gen, source,
                               module_rel=module_rel,
-                              out_path=os.path.join(os.getcwd(), "survivors.json"))
+                              out_path=os.path.join(os.getcwd(), "survivors.json"),
+                              record_attrs={"mutator": mutator, "model": model_id})
     verdicts = [r["verdict"] for r in records]
     score = scorer.compute_score(verdicts)
+    attribution = f"mutator={mutator}"
+    if model_id:
+        attribution += f" model={model_id}"
     print(f"score = {score:.3f}  (killed={verdicts.count('killed')}, "
           f"survived={verdicts.count('survived')}, "
-          f"error={verdicts.count('error')}, timeout={verdicts.count('timeout')})")
+          f"error={verdicts.count('error')}, timeout={verdicts.count('timeout')})"
+          f"  {attribution}")
     print("survivors written to survivors.json")
     return 0
 
@@ -103,6 +121,15 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
     ps = sub.add_parser("score", help="score a subject's test suite")
     ps.add_argument("--subject", required=True, help="path to subject repo")
+    ps.add_argument("--mutator", choices=("deterministic", "llm"),
+                    default="deterministic",
+                    help="fault generator: deterministic (default) or llm (Andy)")
+    ps.add_argument("--model", default=None,
+                    help="OpenRouter model id for --mutator llm (default %s)" % andy.DEFAULT_MODEL)
+    ps.add_argument("--trials-per-site", type=int, default=1,
+                    help="candidates per site for --mutator llm (default 1)")
+    ps.add_argument("--offline", action="store_true",
+                    help="use the deterministic scripted stub (no network/key) for --mutator llm")
     pe = sub.add_parser("equiv", help="triage survivors by JEV equivalence")
     pe.add_argument("--subject", required=True, help="path to subject repo (read-only)")
     pe.add_argument("--survivors", required=True, help="survivors JSON (scorer output)")
@@ -113,7 +140,8 @@ def main(argv=None):
                     help="use the deterministic offline stub instead of live JEV")
     args = ap.parse_args(argv)
     if args.cmd == "score":
-        return run_score(args.subject)
+        return run_score(args.subject, mutator=args.mutator, model=args.model,
+                         trials=args.trials_per_site, offline=args.offline)
     if args.cmd == "equiv":
         return run_equiv(args.subject, args.survivors, out_path=args.out,
                          confidence_cutoff=args.confidence_cutoff,

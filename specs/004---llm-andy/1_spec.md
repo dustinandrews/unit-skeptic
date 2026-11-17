@@ -115,4 +115,4 @@ CI and tests must not depend on a live LLM.
 - Dead-test detection (Sprint 5).
 
 ## Review Result
-STATUS: Draft — pending spec review.
+STATUS: Reviewed and implemented (Sprint 4 shipped, 2026-11-16).
