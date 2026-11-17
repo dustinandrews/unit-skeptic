@@ -44,9 +44,30 @@ surviving faults = the actionable gap list; dead tests = detectable noise).
   CI. CLI `--mutator llm [--model --trials-per-site --offline]`; default stays
   deterministic (backward compatible). Survivors + score line carry
   `mutator`/`model`.
-- Verified: 76 tests green. Offline end-to-end on guineapig prints
+- Verified: 77 tests green. Offline end-to-end on guineapig prints
   `mutator=llm model=openrouter/auto` and runs the full A→C loop; deterministic
   run unchanged (score 1.000, 17 killed, 0 survived).
 
+### Sprint 5: Dead-test detection
+- `adversary deadtests --subject <dir> [--out <file>]`: per-test kill
+  attribution via pytest `--junitxml` + stdlib XML parse (error/timeout not
+  attributed, matching the score denominator). Extends `runner.run_mutant` with
+  an optional absolute `junit_path` (parsed before scratch cleanup; default
+  keeps the verdict-string contract). Output = corpus-qualified JSON
+  (`"corpus": "deterministic"` — `dead` = zero kills in this corpus, not a
+  global claim).
+- Verified: 88 tests green. On guineapig: all 4 deliberate weak tests dead,
+  20 of 29 strong tests kill ≥ 1 mutant (the other 9 assert constants /
+  rejection paths the operator-only corpus cannot reach — correct
+  corpus-scoped behavior, flagged honestly by the qualifier).
+- Cross-sprint value: the tool caught what a naive "dead = not needed" reading
+  would miss — corpus scope matters; a test that never fails under
+  operator flips may still be a real guard against LLM/constant faults.
+
 ## Next (ordered)
-1. Sprint 5 — Dead-test detection (Phase 2): flag tests that never kill a fault.
+Sprint 6 candidates (parked, none active):
+- Dead-test *explanation* (why a test is dead: tautology vs unreachable
+  corpus) if users need it.
+- LLM/Andy corpus for dead-tests (richer faults would clear the 9
+  constant-asserting tests).
+- Real-repo pilot (run the instrument against a larger live codebase).

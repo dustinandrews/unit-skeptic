@@ -26,8 +26,8 @@ the acceptance threshold.
 
 ## The Mutator adapter (swappable)
 
-The core contract is deliberately stable so a future LLM "Andy" driver slots in
-without an interface change:
+The core contract is deliberately stable so both fault generators drive the same
+loop:
 
 - **Site** = `{module, start, end, text, kind}` — an atomic mutatable region
   (one operator / expression) with CHARACTER offsets into the module source;
@@ -37,9 +37,15 @@ without an interface change:
   One site at a time; never whole-file diffs.
 - **Interface** — `mutator.mutate(site) -> list[str]`.
 
-Shipped implementation: `DeterministicMutator` (rule-based operator flips:
-`==`↔`!=`, `<`↔`>=`, `<=`↔`>`, `and`↔`or`; whole-token matching, deterministic,
-zero LLM cost). An `LlmMutator` implements the same Protocol unchanged.
+Shipped implementations:
+- `DeterministicMutator` (rule-based operator flips: `==`↔`!=`, `<`↔`>=`,
+  `<=`↔`>`, `and`↔`or`; whole-token matching, deterministic, zero LLM cost).
+- `LlmMutator` ("Andy", `adversary score --mutator llm --offline`) — blind,
+  stateless LLM fault generator behind the same Protocol. Its prompt is the
+  enclosing function with the site blanked to `<PLACEHOLDER>` (subject source
+  only — never tests/coverage/verdicts), it returns 1..N replacement snippets,
+  and the transport is an injectable seam (live OpenRouter via stdlib urllib,
+  key header-only; deterministic offline stub keeps CI key/network-free).
 
 ## Survivor triage — JEV equivalence (`adversary equiv`)
 
@@ -85,6 +91,23 @@ Bucketing (single-source-of-truth thresholds in `adversary/equiv.py`):
 
 `--confidence-cutoff` overrides the default `CONFIDENCE_CUTOFF` (0.7).
 
+## Dead-test detection (`adversary deadtests`)
+
+Flags tests that never kill a fault. A test's **kill count** = how many
+behavior-changing mutants (parsed, `killed`) it failed on across the corpus.
+A test with kill count 0 is **dead**.
+
+```bash
+adversary deadtests --subject /path/to/subject [--out dead-tests.json]
+```
+
+Output is a corpus-qualified JSON doc: top-level `"corpus": "deterministic"`
+makes the label's scope explicit — a `dead` test here failed on zero
+*deterministic* mutants, NOT a claim it catches no fault under a richer (LLM)
+corpus. Total/dead/alive counts plus per-test `{test_id, kills, status}`
+(dead first, stable order). Error/timeout mutants do not attribute (their
+failures are noise, matching the score denominator). Subject is read-only.
+
 ## Modules
 
 - `sites.py` — AST site enumeration (`Compare`, `BoolOp`, call args, constants)
@@ -96,7 +119,10 @@ Bucketing (single-source-of-truth thresholds in `adversary/equiv.py`):
 - `scorer.py` — loop, score formula, survivors JSON.
 - `equiv.py` — JEV equivalence triage: A/B block builder, decision seam,
   confidence bucketing, triage driver.
-- `cli.py` — `adversary score --subject <dir>` + `adversary equiv ...`.
+- `andy.py` — `LlmMutator` (Sprint 4): blind LLM fault generator + transport
+  seam (live OpenRouter / offline stub) + prompt builder / reply parser.
+- `deadtests.py` — pure kill-aggregation + the `run_deadtests` driver (Sprint 5).
+- `cli.py` — `adversary score | equiv | deadtests --subject <dir> ...`.
 
 ## Verdict taxonomy
 
@@ -108,5 +134,5 @@ Bucketing (single-source-of-truth thresholds in `adversary/equiv.py`):
 ## Dev
 
 ```bash
-.venv/bin/python -m pytest -q -p no:cacheprovider   # 55 tests
+.venv/bin/python -m pytest -q -p no:cacheprovider   # 88 tests
 ```

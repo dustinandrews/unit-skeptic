@@ -14,6 +14,14 @@
   offline stub for CI), 3-bucket confidence bucketing (equivalent/killable/
   undecided), triage JSON output. Reads survivors JSON + subject source only.
 
+## Dead-test detection (sprint 5 — shipped)
+- `adversary deadtests --subject <dir> [--out <file>]`: per-test kill
+  attribution via pytest `--junitxml` + `xml.etree` (stdlib). `runner.run_mutant`
+  gained optional absolute `junit_path` (parses failing nodeids before scratch
+  cleanup; default keeps verdict-string contract); env sets
+  `PYTHONDONTWRITEBYTECODE=1`. Output = corpus-qualified JSON via
+  `deadtests.py` pure fns (`aggregate_kills`/`classify`/`build_output`).
+
 ## LLM Andy driver (sprint 4 — shipped)
 - `adversary/andy.py`: `LlmMutator` — second `Mutator` implementation behind the
   same adapter contract (`mutate(site) -> list[str]`), driving `scorer.run_loop`

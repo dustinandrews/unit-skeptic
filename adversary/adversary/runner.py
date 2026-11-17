@@ -12,8 +12,40 @@ import subprocess
 import sys
 import tempfile
 import time
+import xml.etree.ElementTree as ET
 
 DEFAULT_TIMEOUT_S = 30
+
+
+def _junit_failing_ids(root):
+    """Return nodeids of tests that FAILED or ERRORED, in document order.
+
+    Nodeid is reconstructed as ``classname::name`` (pytest junit emits
+    ``<testcase classname="..." name="...">``). A testcase with no
+    failure/error child passed (not included).
+    """
+    ids = []
+    for tc in root.iter("testcase"):
+        failed = tc.find("failure") is not None or tc.find("error") is not None
+        if failed:
+            cls = tc.get("classname", "")
+            name = tc.get("name", "")
+            ids.append(f"{cls}::{name}" if cls else name)
+    return ids
+
+
+def _junit_all_ids(root):
+    """Return nodeids of ALL testcases (passed or failed), in document order.
+
+    Used to enumerate the complete test list from the green-gate run so that
+    tests with zero kills (dead tests) still appear in the output with a row.
+    """
+    ids = []
+    for tc in root.iter("testcase"):
+        cls = tc.get("classname", "")
+        name = tc.get("name", "")
+        ids.append(f"{cls}::{name}" if cls else name)
+    return ids
 
 
 def _pytest(cmd, subject_dir, env, timeout_s):
@@ -58,7 +90,7 @@ def _copy_pkg_inits(scratch, module_rel, src_dir):
 
 
 def run_mutant(subject_dir, module_rel, mutated_source, src_dir=None,
-               tests_rel="tests", timeout_s=DEFAULT_TIMEOUT_S):
+               tests_rel="tests", timeout_s=DEFAULT_TIMEOUT_S, junit_path=None):
     """Run the subject suite against a mutated copy of one module.
 
     `module_rel` is the module's path RELATIVE to `src_dir` (e.g.
@@ -69,11 +101,20 @@ def run_mutant(subject_dir, module_rel, mutated_source, src_dir=None,
     REGULAR packages (a namespace shadow won't override a real package).
 
     Returns a mechanical verdict: killed / survived / error / timeout.
+
+    When `junit_path` is set (absolute path for per-test attribution), the
+    pytest run also emits a junit report there and the verdict becomes a
+    tuple ``(verdict, failing_ids)`` where failing_ids are the nodeids
+    (classname::name) of the tests that failed/errored — parsed BEFORE the
+    scratch cleanup. Without `junit_path` the plain verdict string is
+    returned (backward-compatible with the score loop). The env sets
+    PYTHONDONTWRITEBYTECODE=1 so pytest cannot drop __pycache__/*.pyc into
+    the tracked subject (SC-004 robustness).
     """
     try:
         ast.parse(mutated_source)
     except SyntaxError:
-        return "error"
+        return ("error", []) if junit_path else "error"
     scratch = tempfile.mkdtemp(prefix="adv_mutant_")
     try:
         dst = os.path.join(scratch, module_rel)
@@ -88,13 +129,26 @@ def run_mutant(subject_dir, module_rel, mutated_source, src_dir=None,
         if src_dir:
             path.append(os.path.abspath(src_dir))
         env["PYTHONPATH"] = os.pathsep.join(path) + os.pathsep + env.get("PYTHONPATH", "")
-        proc, _ = _pytest(
-            [sys.executable, "-m", "pytest", tests_rel, "-q", "-p",
-             "no:cacheprovider", "-o", "pythonpath="],
-            subject_dir, env, timeout_s,
-        )
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
+        cmd = [sys.executable, "-m", "pytest", tests_rel, "-q", "-p",
+               "no:cacheprovider", "-o", "pythonpath="]
+        if junit_path is not None:
+            # Must be absolute: cwd is subject_dir, a relative path would
+            # pollute the subject (SC-004).
+            cmd += ["--junitxml=" + os.path.abspath(junit_path)]
+        proc, _ = _pytest(cmd, subject_dir, env, timeout_s)
         if proc is None:
-            return "timeout"
-        return "survived" if proc.returncode == 0 else "killed"
+            return ("timeout", []) if junit_path else "timeout"
+        verdict = "survived" if proc.returncode == 0 else "killed"
+        if junit_path is None:
+            return verdict
+        # Parse BEFORE scratch rmtree (post-hoc read would be deleted).
+        failing = []
+        if os.path.isfile(os.path.abspath(junit_path)):
+            try:
+                failing = _junit_failing_ids(ET.parse(os.path.abspath(junit_path)).getroot())
+            except ET.ParseError:
+                failing = []
+        return (verdict, failing)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)

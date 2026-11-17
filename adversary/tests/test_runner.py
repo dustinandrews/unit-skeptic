@@ -145,3 +145,82 @@ def test_pkg_mutant_that_keeps_behavior_is_survived(tmp_path):
     mutated = original.replace("return n > 0", "return n > 0 or False")
     verdict = runner.run_mutant(subj["dir"], "pkg/mod.py", mutated, src_dir=subj["src"])
     assert verdict == "survived"
+
+
+# --- T001: per-test kill attribution via junit -----------------------------------
+
+def test_run_mutant_with_junit_returns_failing_ids(tmp_path):
+    """T001: with junit_path set, run_mutant returns (verdict, failing_ids).
+
+    A behavior-changing mutant -> ("killed", [nodeid]) and the junit file
+    exists; a surviving mutant -> ("survived", []).
+    """
+    subj = _write_subject(str(tmp_path))
+    original = _module(os.path.join(subj["src"], "subject_mod.py"))
+    junit = os.path.join(str(tmp_path), "junit_killed.xml")
+
+    mutated = _full_module(original, "return n < 0")  # kills test_positive
+    verdict, failing = runner.run_mutant(subj["dir"], "subject_mod.py", mutated,
+                                         src_dir=subj["src"], junit_path=junit)
+    assert verdict == "killed"
+    assert "tests.test_subject::test_positive" in failing
+    assert os.path.isfile(junit)
+
+    junit2 = os.path.join(str(tmp_path), "junit_surv.xml")
+    const = _full_module(original, "return n > 0 or False")  # survives
+    verdict2, failing2 = runner.run_mutant(subj["dir"], "subject_mod.py", const,
+                                           src_dir=subj["src"], junit_path=junit2)
+    assert verdict2 == "survived"
+    assert failing2 == []
+
+
+def test_run_mutant_without_junit_keeps_string_verdict(tmp_path):
+    """T001: default (no junit_path) keeps the verdict-string contract.
+
+    The score loop must be untouched: run_mutant returns a plain string.
+    """
+    subj = _write_subject(str(tmp_path))
+    original = _module(os.path.join(subj["src"], "subject_mod.py"))
+    mutated = _full_module(original, "return n < 0")
+    verdict = runner.run_mutant(subj["dir"], "subject_mod.py", mutated, src_dir=subj["src"])
+    assert verdict == "killed"
+    assert isinstance(verdict, str)
+
+
+def test_run_mutant_junit_path_absolute_required(tmp_path):
+    """T001: a relative junit path must not pollute the subject cwd.
+
+    cwd is subject_dir during the shadow run; a relative path would write the
+    junit into the subject and break SC-004. Normalize to absolute.
+    """
+    subj = _write_subject(str(tmp_path))
+    original = _module(os.path.join(subj["src"], "subject_mod.py"))
+    mutated = _full_module(original, "return n < 0")
+    # Relative path (intended for subject cwd) - must be treated as absolute.
+    verdict, failing = runner.run_mutant(subj["dir"], "subject_mod.py", mutated,
+                                         src_dir=subj["src"], junit_path="rel_junit.xml")
+    assert verdict == "killed"
+    # Nothing written into the subject dir.
+    assert not os.path.exists(os.path.join(subj["dir"], "rel_junit.xml"))
+    assert not os.path.exists(os.path.join(subj["src"], "rel_junit.xml"))
+
+
+def test_junit_nodeid_reconstruction():
+    """T001: nodeid = classname::name (plan-review finding #7).
+
+    Pinned against real pytest junit output (verified on guineapig):
+    <testcase classname="tests.test_pricing" name="test_..."> -> nodeid
+    "tests.test_pricing::test_...". This test exercises the private
+    reconstruction helper over a sampled junit doc.
+    """
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(
+        '<testsuite><testcase classname="tests.test_pricing" name="test_zero"/>'
+        '<testcase classname="tests.test_pricing" name="test_killed"><failure/></testcase>'
+        '<testcase classname="tests.test_pricing" name="test_errored"><error/></testcase>'
+        '</testsuite>')
+    ids = runner._junit_failing_ids(root)
+    # test_zero passed (no failure/error child) -> not in the failing list;
+    # test_killed (<failure/>) and test_errored (<error/>) are included.
+    assert ids == ["tests.test_pricing::test_killed",
+                   "tests.test_pricing::test_errored"]

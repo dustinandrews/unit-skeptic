@@ -2,5 +2,6 @@
 __pycache__/
 *.egg-info/
 survivors.json
+dead-tests.json
 .scratch/
 .pytest_cache/

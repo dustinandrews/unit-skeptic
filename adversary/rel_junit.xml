@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.011" timestamp="2026-11-16T17:11:31.835057-08:00" hostname="dustinandrews-NucBox-EVO-X2"><testcase classname="tests.test_subject" name="test_positive" time="0.000"><failure message="assert False&#10; +  where False = is_positive(5)">def test_positive():
+&gt;       assert is_positive(5)
+E       assert False
+E        +  where False = is_positive(5)
+
+tests/test_subject.py:3: AssertionError</failure></testcase></testsuite></testsuites>

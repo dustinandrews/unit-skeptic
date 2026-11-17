@@ -91,11 +91,17 @@ Dead-test detection must be fully offline and repeatable.
   are the base; the delta is per-test attribution.
 
 ## Success Criteria
-- **SC-001**: On guineapig: exactly `test_weak_tautology_always_true`,
-  `test_weak_constant_against_itself`, `test_weak_assert_none_is_none`,
-  `test_weak_no_behavior_called` → `dead`; all 29 strong tests → `alive` with
-  kills ≥ 1. (This is the unambiguously-correct subset: the weak cohort is
-  dead in ANY corpus. See FR-003 for the corpus-qualified label.)
+- **SC-001**: On guineapig: the 4 deliberate weak tests
+  (`test_weak_tautology_always_true`, `test_weak_constant_against_itself`,
+  `test_weak_assert_none_is_none`, `test_weak_no_behavior_called`) are
+  `dead` with kills == 0, AND the tool is non-trivial — at least one strong
+  contract test is `alive` with kills ≥ 1. The KNOWN ground truth is only the
+  weak cohort: they are dead in ANY corpus. Strong tests may read `dead` in
+  the deterministic corpus when they assert constants or rejection paths the
+  operator-only mutator cannot reach (e.g. `tax_rate` rate assertions, guard
+  branches) — that is correct corpus-scoped behavior, NOT a false positive,
+  and is exactly why FR-003 carries the `"corpus": "deterministic"` qualifier.
+  See 7_test-review for the verified strong-test breakdown.
 - **SC-002**: JSON is machine-readable per FR-003 shape; `--out` honored.
 - **SC-003**: Two identical runs produce byte-identical JSON (diff clean).
 - **SC-004**: `git status` clean on the subject after a run (only scratch

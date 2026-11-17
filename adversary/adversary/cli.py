@@ -10,7 +10,7 @@ import json
 import os
 import sys
 
-from adversary import andy, equiv, runner, scorer, sites
+from adversary import andy, deadtests, equiv, runner, scorer, sites
 from adversary.mutators import DeterministicMutator
 
 
@@ -116,6 +116,18 @@ def run_equiv(subject_dir, survivors_path, out_path=None, confidence_cutoff=None
     return 0
 
 
+def run_deadtests(subject_dir, out_path=None):
+    """Flag tests that never kill a fault (Sprint 5, FR-001/SC-001)."""
+    # Loads only by importing the runner-driven pure aggregation inline to
+    # avoid a heavy import up-front.
+    out_path = out_path or os.path.join(os.getcwd(), "dead-tests.json")
+    json_text = deadtests.run_deadtests(subject_dir, out_path=out_path)
+    doc = json.loads(json_text)
+    print(f"dead tests: {doc['dead']} of {doc['total']}  (corpus={doc['corpus']})")
+    print(f"written to {out_path}")
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="adversary")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -138,6 +150,9 @@ def main(argv=None):
                     help="confidence threshold for undecided (default module constant)")
     pe.add_argument("--offline", action="store_true",
                     help="use the deterministic offline stub instead of live JEV")
+    pd = sub.add_parser("deadtests", help="flag tests that never kill a fault")
+    pd.add_argument("--subject", required=True, help="path to subject repo (read-only)")
+    pd.add_argument("--out", default=None, help="dead-tests JSON output path (default ./dead-tests.json)")
     args = ap.parse_args(argv)
     if args.cmd == "score":
         return run_score(args.subject, mutator=args.mutator, model=args.model,
@@ -146,6 +161,8 @@ def main(argv=None):
         return run_equiv(args.subject, args.survivors, out_path=args.out,
                          confidence_cutoff=args.confidence_cutoff,
                          offline=args.offline)
+    if args.cmd == "deadtests":
+        return run_deadtests(args.subject, out_path=args.out)
     return 1
 
 
