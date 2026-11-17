@@ -69,8 +69,11 @@ Dead-test detection must be fully offline and repeatable.
   recorded for mutants with verdict `killed`. Error/timeout mutants contribute
   NO attribution (their failures are parse/timeout noise, not behavior).
 - **FR-003**: Output JSON: list of `{test_id, kills, status}` where
-  `status = dead | alive` by `kills == 0`; sorted with dead tests first (or
-  stable deterministic order); total counts included.
+  `status = dead | alive`; plus a corpus-qualifying top-level field
+  `"corpus": "deterministic"` so consumers know the label's scope — a test
+  labeled `dead` here is dead-in-this-corpus (i.e. failed on zero *deterministic*
+  mutants); it is NOT a claim it catches no LLM/Andy fault. Sorted with dead
+  tests first (or stable deterministic order); total counts included.
 - **FR-004**: Reproducible — same subject/committed code + same mutator →
   byte-identical JSON output.
 - **FR-005**: Subject read-only; scratch shadow only (reuse `runner.run_mutant`
@@ -91,11 +94,28 @@ Dead-test detection must be fully offline and repeatable.
 - **SC-001**: On guineapig: exactly `test_weak_tautology_always_true`,
   `test_weak_constant_against_itself`, `test_weak_assert_none_is_none`,
   `test_weak_no_behavior_called` → `dead`; all 29 strong tests → `alive` with
-  kills ≥ 1.
+  kills ≥ 1. (This is the unambiguously-correct subset: the weak cohort is
+  dead in ANY corpus. See FR-003 for the corpus-qualified label.)
 - **SC-002**: JSON is machine-readable per FR-003 shape; `--out` honored.
 - **SC-003**: Two identical runs produce byte-identical JSON (diff clean).
 - **SC-004**: `git status` clean on the subject after a run (only scratch
-  writes; no committed mutation).
+  writes; no committed mutation). Runner sets `PYTHONDONTWRITEBYTECODE=1` so
+  pytest cannot drop `__pycache__/*.pyc` into the tracked subject — the
+  guarantee is robust even if `.gitignore` drifts.
+
+## Reuse contract (extends NFR-003; named per spec-review)
+The per-test attribution extension point IS `runner.run_mutant`:
+- `run_mutant` gains an optional `junit_path` parameter (absolute path; cwd is
+  `subject_dir`, so a relative path would pollute the subject and break
+  SC-004). When set, the pytest cmd gains `--junitxml=<junit_path>`.
+- `run_mutant` parses the junit failures for `killed` verdicts and returns
+  `(verdict, failing_ids)` — the parse MUST happen inside `run_mutant` BEFORE
+  its `finally: shutil.rmtree(scratch)` (a post-hoc read of a scratch path is
+  already deleted), or the junit file is written outside the scratch dir. The
+  default (no junit path) keeps the current `verdict`-string behavior so the
+  score loop is untouched.
+- Test ids are pytest nodeids from the junit `<testcase name=... classname=...>`
+  (stable across shadow runs — subject tests and paths don't move).
 
 ## Out of Scope (this sprint)
 - LLM/Andy corpus for dead-tests (deterministic only; Andy floods survivors
