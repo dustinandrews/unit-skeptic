@@ -43,6 +43,37 @@ import urllib.request
 
 from adversary import equiv
 
+
+def _load_env_file(dotenv_path):
+    """STM-load a .env file into os.environ (stdlib; NFR-001 forbids python-dotenv).
+
+    Reads KEY=VALUE lines (ignoring comments/blank), only setting vars not
+    already present so a real exported env wins. Returns dict of loaded pairs.
+    """
+    loaded = {}
+    try:
+        with open(dotenv_path) as fh:
+            for raw in fh:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, val = line.partition("=")
+                key = key.strip()
+                if key and key not in os.environ:
+                    os.environ[key] = val.strip().strip('"').strip("'")
+                    loaded[key] = os.environ[key]
+    except FileNotFoundError:
+        pass
+    return loaded
+
+
+# Load the project .env at import (next to the adversary/ package dir) so live
+# Andy runs pick up OPENROUTER_API_KEY without exporting it per-shell. Export
+# wins over .env; module-level load keeps it available to real_complete and the
+# key-hygiene tests. NFR-001: stdlib only.
+_ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+_load_env_file(_ENV_PATH)
+
 # Default model id for live runs (FR-005); "openrouter/auto" routes to a
 # sensible default on the OpenRouter proxy.
 DEFAULT_MODEL = "openrouter/auto"
