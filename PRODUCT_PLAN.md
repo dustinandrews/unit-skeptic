@@ -65,9 +65,20 @@ surviving faults = the actionable gap list; dead tests = detectable noise).
   operator flips may still be a real guard against LLM/constant faults.
 
 ## Next (ordered)
-Sprint 6 candidates (parked, none active):
+Sprint 6 ACTIVE: **fix Andy's own test gaps** the live-LLM dogfood exposed
+([2026-11-18 agreed]): add transport assertions (HTTP method, encoding, timeout,
+endpoint) to `test_real_complete_*` and the parser dedupe/fenced-fallback tests
+for `andy.parse_reply`, using the recorded live-corpus survivors as the proof.
+Goal: drive the instrument's self-score back up and close the concrete blind
+spots the tool itself found.
+
+Parked after Sprint 6 (ordered):
 - Dead-test *explanation* (why a test is dead: tautology vs unreachable
-  corpus) if users need it.
+  corpus). Design decided ([2026-11-18]): verdict + raw reason are MECHANICAL
+  (summarize already-collected kill data: which sites/operators a dead test
+  never covered) with NO LLM; an LLM is used only as a narrow, targeted
+  explainer for ambiguous cases (convert "missed operators at lines A–B" into
+  plain-language prose). Avoids an LLM broadly judging tests it never ran.
 - LLM/Andy corpus for dead-tests (richer faults would clear the 9
   constant-asserting tests).
 - Real-repo pilot (run the instrument against a larger live codebase).
