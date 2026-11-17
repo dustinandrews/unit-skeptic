@@ -8,7 +8,7 @@ faults can be verified against ground truth.
 ## Domain
 
 A small order-pricing calculator: quantity-tier discounts, tax applicability and
-rates by region, and cent rounding. No I/O, no randomness, no network — all
+rates by region, and cent rounding. No I/O, no randomness, no network, all
 functions are pure and deterministic.
 
 ## How to run the suite
@@ -66,7 +66,7 @@ The boundary tests in `tests/test_pricing.py` protect:
 ## Deliberate weak-test cohort (dead-test ground truth)
 
 `tests/test_weak.py` contains **4 intentionally useless tests**. They pass no
-matter what the pricing functions do — they exercise no real behavior. The later
+matter what the pricing functions do, they exercise no real behavior. The later
 dead-test detector (Phase 2) MUST flag all four:
 
 | Test | Why it is dead |

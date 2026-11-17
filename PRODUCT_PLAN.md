@@ -34,7 +34,7 @@ surviving faults = the actionable gap list; dead tests = detectable noise).
   de-risked by spike (12/12 exact incl. half-penny edge).
 
 ### Sprint 4: LLM "Andy" driver
-- `adversary/andy.py`: `LlmMutator` — second `Mutator` behind the same
+- `adversary/andy.py`: `LlmMutator`, second `Mutator` behind the same
   `mutate(site) -> list[str]` contract, so `scorer.run_loop` is untouched. Blind
   one-shot per site: prompt = enclosing function with target region blanked to
   `<PLACEHOLDER>` (subject source only, reusing Sprint-3 block builder); never
@@ -54,14 +54,14 @@ surviving faults = the actionable gap list; dead tests = detectable noise).
   attributed, matching the score denominator). Extends `runner.run_mutant` with
   an optional absolute `junit_path` (parsed before scratch cleanup; default
   keeps the verdict-string contract). Output = corpus-qualified JSON
-  (`"corpus": "deterministic"` — `dead` = zero kills in this corpus, not a
+  (`"corpus": "deterministic"`, `dead` = zero kills in this corpus, not a
   global claim).
 - Verified: 88 tests green. On guineapig: all 4 deliberate weak tests dead,
   20 of 29 strong tests kill ≥ 1 mutant (the other 9 assert constants /
-  rejection paths the operator-only corpus cannot reach — correct
+  rejection paths the operator-only corpus cannot reach, correct
   corpus-scoped behavior, flagged honestly by the qualifier).
 - Cross-sprint value: the tool caught what a naive "dead = not needed" reading
-  would miss — corpus scope matters; a test that never fails under
+  would miss, corpus scope matters; a test that never fails under
   operator flips may still be a real guard against LLM/constant faults.
 
 ## Next (ordered)

@@ -1,7 +1,7 @@
 # unit-skeptic (internally: adversary)
 
 **The test suite's adversary.** unit-skeptic measures how well a test suite
-actually catches faults — not how many tests are green.
+actually catches faults, not how many tests are green.
 
 > **Status: rough but promising.** This is under active development. It works
 > end-to-end on its own codebase and a small guinea-pig subject, but expect
@@ -9,7 +9,7 @@ actually catches faults — not how many tests are green.
 
 ## What it is
 
-AI (and hasty human) development loves to ship "1235 tests green" — but a green
+AI (and hasty human) development loves to ship "1235 tests green", but a green
 count is theatre if the suite catches few *real* regressions. unit-skeptic
 injects one realistic fault at a time into a clean, green codebase, runs the
 suite, and reports:
@@ -18,20 +18,20 @@ suite, and reports:
 - a **machine-readable list of surviving faults** = the suite's actual blind spots;
 - which tests never kill any fault (**dead tests**).
 
-A suite that scores 23% catches 23% of realistic faults — regardless of how many
+A suite that scores 23% catches 23% of realistic faults, regardless of how many
 green tests it has.
 
 ## It eats its own dog food
 
 We ran unit-skeptic against **its own test suite** (mutation target: `andy.py`,
 the LLM fault generator). The deterministic corpus scored **0.923**; the live
-LLM corpus scored **0.526** — and the survivors exposed real gaps:
+LLM corpus scored **0.526**, and the survivors exposed real gaps:
 
-- Flipping the transport's `"POST"` to `"GET"` **survived** — the tests guard
+- Flipping the transport's `"POST"` to `"GET"` **survived**, the tests guard
   "API key stays in the header" but never check the HTTP method, encoding,
   timeout, or endpoint. Every one of those would genuinely break a live call.
 - An `and` → `or` regression in the reply parser's dedupe/fenced-fallback path
-  **survived** — dupes, empties, and the original snippet leak through
+  **survived**; dupes, empties, and the original snippet leak through
   uncaught.
 
 The tool found its own test suite was weaker than its 88-green count suggested.
@@ -52,7 +52,7 @@ Subcommands: `score` | `equiv` | `deadtests`. Each takes `--subject <dir>`.
 
 The default `DeterministicMutator` flips operators (`==`↔`!=`, `<`↔`>=`,
 `and`↔`or`, …). For more realistic faults, the `--mutator llm` driver ("Andy") is
-a blind, stateless LLM fault generator — its prompt is the enclosing function
+a blind, stateless LLM fault generator; its prompt is the enclosing function
 with the target region blanked, drawn from subject source only (never tests,
 coverage, verdicts, or survivors).
 
@@ -71,7 +71,7 @@ cp .env.example .env      # then edit .env
 export OPENROUTER_API_KEY=sk-or-...
 ```
 
-The key travels **only** in the `Authorization` header — never in the prompt,
+The key travels **only** in the `Authorization` header, never in the prompt,
 request body, or surviving-fault output. `.env` is gitignored; commit
 `.env.example`, never `.env`.
 
@@ -82,7 +82,7 @@ score = killed / (killed + survived)
 ```
 
 `error` (mutant didn't parse / couldn't run) and `timeout` are excluded from the
-denominator — they are not valid faults. `score >= 0.8` is the acceptance
+denominator; they are not valid faults. `score >= 0.8` is the acceptance
 threshold.
 
 | verdict | meaning |
@@ -94,11 +94,11 @@ threshold.
 
 ## More
 
-- **`adversary equiv`** — cheap mechanical first-pass triage of survivors into
+- **`adversary equiv`**, cheap mechanical first-pass triage of survivors into
   `equivalent` / `killable` / `undecided` via two clean A/B code blocks to a JEV
   decision model (so equivalent-mutant false positives aren't charged to the
   score). Subject is read-only.
-- **`adversary deadtests`** — flags tests that never kill a fault
+- **`adversary deadtests`**, flags tests that never kill a fault
   (corpus-qualified: a test is `dead` under the *deterministic* corpus unless a
   richer LLM corpus would kill it).
 
@@ -106,7 +106,7 @@ See the per-command docs below for full usage.
 
 ---
 
-*(The detailed design docs follow — sites/mutators/runner internals, the JEV
+*(The detailed design docs follow, sites/mutators/runner internals, the JEV
 triage A/B block builder and decision bucketing, and dead-test semantics.)*
 
 ## The Mutator adapter (swappable)
@@ -114,26 +114,26 @@ triage A/B block builder and decision bucketing, and dead-test semantics.)*
 The core contract is deliberately stable so both fault generators drive the same
 loop:
 
-- **Site** = `{module, start, end, text, kind}` — an atomic mutatable region
+- **Site** = `{module, start, end, text, kind}`, an atomic mutatable region
   (one operator / expression) with CHARACTER offsets into the module source;
   `text` is `source[start:end]`.
-- **Replacement unit** — each candidate from `mutate(site)` is the full
+- **Replacement unit**, each candidate from `mutate(site)` is the full
   replacement text spliced at `[start, end)`: `source[:start] + repl + source[end:]`.
   One site at a time; never whole-file diffs.
-- **Interface** — `mutator.mutate(site) -> list[str]`.
+- **Interface**, `mutator.mutate(site) -> list[str]`.
 
 Shipped implementations:
 - `DeterministicMutator` (rule-based operator flips: `==`↔`!=`, `<`↔`>=`,
   `<=`↔`>`, `and`↔`or`; whole-token matching, deterministic, zero LLM cost).
-- `LlmMutator` ("Andy") — blind, stateless LLM fault generator behind the same
+- `LlmMutator` ("Andy"), blind, stateless LLM fault generator behind the same
   Protocol, with an injectable transport seam (live OpenRouter via stdlib
   urllib, key header-only; deterministic offline stub keeps CI key/network-free).
 
-## Survivor triage — JEV equivalence (`adversary equiv`)
+## Survivor triage, JEV equivalence (`adversary equiv`)
 
 Surviving faults are either **real blind spots** (tests don't catch a genuine
 behavior change) or **equivalent mutants** (syntactically different,
-behaviorally identical — false positives). `adversary equiv` gives every
+behaviorally identical, false positives). `adversary equiv` gives every
 survivor a cheap mechanical first pass: build two clean A/B code blocks and ask
 the JEV decision model (`typesafe/jev-1.14`) whether they are equivalent.
 
@@ -153,7 +153,7 @@ confidence in [0,1]. Subject source is read-only (never modified).
 - Site at **module top level** → Function A is the enclosing statement block
   (or the whole module if none).
 
-The two blocks are clean, self-contained code blocks — never a diff.
+The two blocks are clean, self-contained code blocks, never a diff.
 
 ### Decision seam (FR-003) + buckets (FR-004)
 
@@ -161,14 +161,14 @@ Triage calls one injectable `decide(state, questions) -> normalized answers`.
 The real implementation is a thin adapter over the reused
 `triage-engine/src/jev/client.py` `JevClient` (imported lazily at the adapter
 boundary only; the API key travels solely in the Authorization header, never in
-state/questions/the body). Tests and `--offline` use a deterministic stub — no
+state/questions/the body). Tests and `--offline` use a deterministic stub, no
 live provider in CI.
 
 Bucketing (single-source-of-truth thresholds in `adversary/equiv.py`):
 
 - high-confidence `equivalent` → **equivalent**
 - high-confidence `different` → **killable**
-- low confidence (or no valid answer) → **undecided** — never forced into one
+- low confidence (or no valid answer) → **undecided**, never forced into one
   of the other two, so a heavier partner model / human escalates only these.
 
 `--confidence-cutoff` overrides the default `CONFIDENCE_CUTOFF` (0.7).
@@ -184,7 +184,7 @@ adversary deadtests --subject /path/to/subject [--out dead-tests.json]
 ```
 
 Output is a corpus-qualified JSON doc: top-level `"corpus": "deterministic"`
-makes the label's scope explicit — a `dead` test here failed on zero
+makes the label's scope explicit, a `dead` test here failed on zero
 *deterministic* mutants, NOT a claim it catches no fault under a richer (LLM)
 corpus. Total/dead/alive counts plus per-test `{test_id, kills, status}`
 (dead first, stable order). Error/timeout mutants do not attribute (their
@@ -192,19 +192,19 @@ failures are noise, matching the score denominator). Subject is read-only.
 
 ## Modules
 
-- `sites.py` — AST site enumeration (`Compare`, `BoolOp`, call args, constants)
+- `sites.py`, AST site enumeration (`Compare`, `BoolOp`, call args, constants)
   with exact character offsets.
-- `mutators.py` — `Mutator` Protocol + `DeterministicMutator`.
-- `runner.py` — green-gate oracle + per-mutant pytest run from a scratch shadow
+- `mutators.py`, `Mutator` Protocol + `DeterministicMutator`.
+- `runner.py`, green-gate oracle + per-mutant pytest run from a scratch shadow
   dir (the real repo is **never** modified; package `__init__.py` files are
   mirrored into the shadow so mutants actually load). Verdicts are mechanical.
-- `scorer.py` — loop, score formula, survivors JSON.
-- `equiv.py` — JEV equivalence triage: A/B block builder, decision seam,
+- `scorer.py`, loop, score formula, survivors JSON.
+- `equiv.py`, JEV equivalence triage: A/B block builder, decision seam,
   confidence bucketing, triage driver.
-- `andy.py` — `LlmMutator`: blind LLM fault generator + transport seam (live
+- `andy.py`, `LlmMutator`: blind LLM fault generator + transport seam (live
   OpenRouter / offline stub) + prompt builder / reply parser.
-- `deadtests.py` — pure kill-aggregation + the `run_deadtests` driver.
-- `cli.py` — `adversary score | equiv | deadtests --subject <dir> ...`.
+- `deadtests.py`, pure kill-aggregation + the `run_deadtests` driver.
+- `cli.py`, `adversary score | equiv | deadtests --subject <dir> ...`.
 
 ## Dev
 

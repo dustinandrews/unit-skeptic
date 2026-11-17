@@ -7,7 +7,7 @@
   green-count inflate confidence while actual regressions slip through.
 - Who will use it?
   Engineers and AI-pipeline builders who want an honest measure of whether their
-  test suite catches realistic faults — and which tests are worth keeping.
+  test suite catches realistic faults, and which tests are worth keeping.
 - Is it an MVP or V2?
   MVP. Phase 1 = the score. Phase 2 = dead-test detection + surviving-fault cleanup.
 
@@ -19,12 +19,12 @@ catches 23% of realistic faults is weak regardless of how many green tests it ha
 ## Example End User Scenario
 A team's AI agent reports "all 1235 tests green." Before trusting that, the engineer
 runs Adversary. It injects 100 realistic faults; only 23 fail a test. The suite is
-predictably blind to 77 real regressions — the green count was theatre.
+predictably blind to 77 real regressions, the green count was theatre.
 
 ## What Success Looks Like (Phase 1)
 Given a green Python codebase, Adversary produces a calibrated, reproducible score:
 "this suite catches X% of injected realistic faults," plus the list of surviving
-faults as the actionable gap list — all without modifying the real repo, with Andy
+faults as the actionable gap list, all without modifying the real repo, with Andy
 blind to the tests.
 
 ## Out of Scope for MVP
