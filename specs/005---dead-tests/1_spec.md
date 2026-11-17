@@ -133,4 +133,6 @@ The per-test attribution extension point IS `runner.run_mutant`:
   attribution is the mechanism).
 
 ## Review Result
-STATUS: Draft — pending spec review.
+COMPLETE. Spec-review PASS (4 warnings applied); plan-review PASS; tasks-review
+PASS; genuine test-review PASS + product-review PASS on landed code (88 tests
+green; `adversary deadtests` verified end-to-end on guineapig). Merged to main.

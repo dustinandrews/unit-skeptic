@@ -188,19 +188,21 @@ def test_run_mutant_without_junit_keeps_string_verdict(tmp_path):
 
 
 def test_run_mutant_junit_path_absolute_required(tmp_path):
-    """T001: a relative junit path must not pollute the subject cwd.
+    """T001: a relative junit path is REJECTED (no silent cwd pollution).
 
-    cwd is subject_dir during the shadow run; a relative path would write the
-    junit into the subject and break SC-004. Normalize to absolute.
+    A relative path resolves against the CALLING process cwd (not the subject,
+    not the scratch), which would silently write the junit report wherever the
+    caller happened to run from — the exact SC-004 hazard. Reject outright so
+    the caller must pass a deliberate absolute path.
     """
     subj = _write_subject(str(tmp_path))
     original = _module(os.path.join(subj["src"], "subject_mod.py"))
     mutated = _full_module(original, "return n < 0")
-    # Relative path (intended for subject cwd) - must be treated as absolute.
-    verdict, failing = runner.run_mutant(subj["dir"], "subject_mod.py", mutated,
-                                         src_dir=subj["src"], junit_path="rel_junit.xml")
-    assert verdict == "killed"
-    # Nothing written into the subject dir.
+    import pytest
+    with pytest.raises(ValueError):
+        runner.run_mutant(subj["dir"], "subject_mod.py", mutated,
+                          src_dir=subj["src"], junit_path="rel_junit.xml")
+    # Nothing written anywhere relative to the subject or caller cwd.
     assert not os.path.exists(os.path.join(subj["dir"], "rel_junit.xml"))
     assert not os.path.exists(os.path.join(subj["src"], "rel_junit.xml"))
 

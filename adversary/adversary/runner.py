@@ -133,9 +133,12 @@ def run_mutant(subject_dir, module_rel, mutated_source, src_dir=None,
         cmd = [sys.executable, "-m", "pytest", tests_rel, "-q", "-p",
                "no:cacheprovider", "-o", "pythonpath="]
         if junit_path is not None:
-            # Must be absolute: cwd is subject_dir, a relative path would
-            # pollute the subject (SC-004).
-            cmd += ["--junitxml=" + os.path.abspath(junit_path)]
+            # Must be absolute: a relative path resolves against the CALLING
+            # process cwd (not the subject), silently polluting whatever dir
+            # the caller happened to run from (SC-004). Reject it outright.
+            if not os.path.isabs(junit_path):
+                raise ValueError(f"junit_path must be absolute: {junit_path!r}")
+            cmd += ["--junitxml=" + junit_path]
         proc, _ = _pytest(cmd, subject_dir, env, timeout_s)
         if proc is None:
             return ("timeout", []) if junit_path else "timeout"
