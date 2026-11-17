@@ -24,6 +24,10 @@ Write `tests/test_runner.py` additions:
   returns plain verdict string (backward compat, score loop untouched).
 - `test_run_mutant_junit_path_absolute_required`: relative path raises or is
   normalized to absolute (no file pollution in subject cwd).
+- `test_junit_nodeid_reconstruction`: pinned against REAL pytest output —
+  nodeid = `classname::name` (`tests.test_pricing::test_tier_zero_qty_is_zero_discount`);
+  verified on guineapig: junit emits `<testcase classname="tests.test_pricing"
+  name="test_..."`, so reconstruction is `f"{c}::{n}"` (plan-review finding #7).
 Observe RED (no junit_path param yet).
 
 ### T001 — GREEN
@@ -90,4 +94,5 @@ Confirm RED→GREEN; full suite green.
   denominator; T002 RED pins this.
 
 ## Review Result
-STATUS: Draft — pending plan review.
+STATUS: PASS (round 1; 1 follow-up applied — nodeid reconstruction pinned in
+T001 RED per finding #7)
