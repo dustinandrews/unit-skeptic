@@ -34,7 +34,5 @@ surviving faults = the actionable gap list; dead tests = detectable noise).
   de-risked by spike (12/12 exact incl. half-penny edge).
 
 ## Next (ordered)
-1. Sprint 4 — LLM "Andy" driver (swappable, stateless) producing richer faults,
-   blind to tests, sandboxed; lands after equivalence triage so its noisy
-   survivor flood is filterable.
+1. Sprint 4 — LLM "Andy" driver — IN PROGRESS: spec drafted 2026-11-14.
 2. Sprint 5 — Dead-test detection (Phase 2): flag tests that never kill a fault.
