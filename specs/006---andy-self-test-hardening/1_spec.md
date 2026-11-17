@@ -40,14 +40,21 @@ the HTTP method to `GET`, encode the body as `ascii`, set timeout to 0, or swap
 the endpoint must be **killed** (fail ≥1 test), not survive.
 
 **Acceptance Scenarios:**
-1. **Given** a mutant replacing `"POST"` with `"GET"` in the transport, **When**
-   the suite runs, **Then** ≥1 test fails. (G1)
+1. **Given** a mutant replacing `"POST"` with `"GET"` in `_http_post`, **When**
+   the suite runs `real_complete` with `andy.urllib.request.urlopen` patched to
+   capture the `Request`, **Then** the captured request `get_method()` is
+   asserted `== "POST"` and that test fails under the mutant. (G1)
 2. **Given** a mutant changing `body.encode("utf-8")` to `.encode("ascii")`,
-   **When** the suite runs, **Then** ≥1 test fails. (G2)
-3. **Given** a mutant setting the connection timeout to `0`, **When** the suite
-   runs, **Then** ≥1 test fails. (G3)
+   and the transport test uses a prompt containing a non-ASCII character,
+   **When** the suite runs, **Then** the `.encode("ascii")` mutant raises and
+   ≥1 test fails. (G2)
+3. **Given** a mutant setting the connection timeout to `0` **When** the suite
+   runs `real_complete` with `andy.urllib.request.urlopen` patched to record the
+   `timeout` kwarg, **Then** the recorded timeout is asserted `== 60` and that
+   test fails under the mutant. (G3)
 4. **Given** a mutant swapping the endpoint default, **When** the suite runs,
-   **Then** ≥1 test fails. (G4)
+   **Then** the captured `url` is asserted `== OPENROUTER_ENDPOINT` and that
+   test fails under the mutant. (G4)
 
 ### User Story 2 - Fenced-fallback dedupe is proven (P2)
 The reply parser's fenced (non-tag) fallback branch filters duplicates, empties,
@@ -55,28 +62,34 @@ and identity just like the tag branch. A regression that weakens that filter
 must be killed.
 
 **Acceptance Scenarios:**
-1. **Given** a fenced reply containing a duplicate and an identity-original
-   block, **When** `parse_reply` runs, **Then** only distinct non-empty, non-identity
-   candidates are returned.
+1. **Given** a fenced reply containing a duplicate, an empty, and an
+   identity-original block, **When** `parse_reply` runs, **Then** only distinct
+   non-empty, non-identity candidates are returned.
 2. **Given** a mutant weakening the fenced filter to `or`, **When** the suite
    runs, **Then** ≥1 test fails. (G5)
 
 ## Requirements
 
 ### Functional Requirements
-- **FR-001**: `real_complete` transport tests MUST assert the HTTP request targets
-  `OPENROUTER_ENDPOINT` via the `POST` method.
-- **FR-002**: The transport tests MUST assert the request body is
-  UTF-8-encoded JSON (not ASCII) and the headers set `Content-Type:
-  application/json`.
+- **FR-001**: The transport tests MUST assert the HTTP request targets
+  `OPENROUTER_ENDPOINT` and uses method `POST`, by capturing the `Request` via
+  a patched `andy.urllib.request.urlopen` and asserting `request.get_method()
+  == "POST"`.
+- **FR-002**: The transport scheme test MUST assert the request body is
+  UTF-8-encoded JSON (NOT ASCII) and the headers set `Content-Type:
+  application/json`. To make the encoding observable, the prompt MUST contain a
+  non-ASCII character so an `.encode("ascii")` mutant raises.
 - **FR-003**: The transport tests MUST pin `_http_post`'s connection timeout to
-  `60`.
+  `60` by patching `andy.urllib.request.urlopen` to record and assert the
+  `timeout` kwarg.
 - **FR-004**: `parse_reply` MUST have a fenced-fallback test proving dedupe
   (duplicate collapse), empty-drop, and identity-drop behave identically to the
   tag branch.
-- **FR-005**: NO test does real I/O; `_http_post` internals are verified without
-  network (inject fake `http_post` and/or assert via a fake that the model's
-  expected method/timeout/encoding are passed through where observable).
+- **FR-005**: NO test does real I/O or hits the network. The verb (G1), timeout
+  (G3) and encoding (G2) are observed by patching `andy.urllib.request.urlopen`
+  with a fake that records the `Request`/`timeout` and returns a valid
+  completion JSON response; the endpoint/body/headers (G4) are captured by an
+  injected fake `http_post` as today. Neither seam reaches the live network.
 
 ### NFRs
 - **NFR-001** (`adversary` package): stdlib-only imports preserved; no new
@@ -87,11 +100,15 @@ must be killed.
 - **SC-001**: ≥5 new tests, each mapping 1:1 to one of G1–G5, that FAIL with the
   corresponding mutant injected (verified by running the mutated copy).
 - **SC-002**: Full suite green on `main` baseline + new tests (expect 92–94 passed).
-- **SC-003**: Deterministic AND live-Andy self-score on `andy.py` improves vs the
-  recorded baseline (0.923 deterministic stays or rises; live 0.526 → strictly
-  higher), with the five specific mutations no longer surviving.
+- **SC-003** (reported, not gating): report the live-Andy self-score on
+  `andy.py` after this sprint (deterministic baseline 0.923; live baseline
+  0.526). Live score is stochastic (model + network may not re-propose these
+  exact 5 mutants), so SC-003 is a reported result, NOT a hard gate; SC-001 and
+  SC-002 are the deterministic acceptance criteria.
 - **SC-004**: All TDD steps observed: each new test written RED (fails for the
   expected reason), then GREEN.
 
 ## Review Result
-STATUS: Draft
+STATUS: Revised (addressing review blockers: urlopen-patch seam for G1/G3
+method+timeout; non-ASCII prompt for G2 encoding; empty block added to US2 AS1;
+SC-003 demoted to reported-not-gating). Re-review pending.
