@@ -30,14 +30,20 @@ own tests. To read the numbers, two things matter:
 - The **score is the fraction of injected faults the tests caught**:
   `killed / (killed + survived)`. "Killed" means at least one test failed with
   that fault in; "survived" means every test still passed.
-- The two fault corpora differ in *how many* faults they inject, so the
-  absolute scores are not directly comparable. The point is not one number vs
-  the other; it is what a richer, realistic fault set reveals.
+- The tool can generate faults two ways, and they are not equally demanding:
+  - the **deterministic corpus** makes simple mechanical edits, flipping one
+    operator or boolean at a time (e.g. `==` into `!=`, `and` into `or`);
+  - the **live LLM corpus** ("Andy") asks a model to replace each code region
+    with the kind of subtle, realistic change a developer might actually make,
+    which tends to produce faults that are harder for a test suite to notice.
+- The two corpora also differ in *how many* faults they inject, so the absolute
+  scores are not directly comparable. The point is not one number vs the other;
+  it is what the richer, more realistic corpus reveals about blind spots.
 
 | corpus | valid faults injected | tests caught | score |
 |--------|----------------------|--------------|-------|
-| deterministic (operator flips) | 13 | 12 | 0.92 |
-| live LLM (realistic faults) | 78 | 41 | 0.53 |
+| deterministic (simple operator flips) | 13 | 12 | 0.92 |
+| live LLM (realistic code edits) | 78 | 41 | 0.53 |
 
 Under the richer LLM corpus, **37 of 78** injected faults survived, meaning no
 test failed while that fault was present. Two of the clearest blind spots:
