@@ -128,8 +128,6 @@ must be killed.
   expected reason), then GREEN.
 
 ## Review Result
-STATUS: COMPLETE (spec-review PASS deleg_129e635c; revised 2026-11-18 after
-plan-review deleg_8c7fd1c0 empirically disproved G2's test-side killability:
-G2 reclassified as EQUIVALENT mutant under ensure_ascii=True — documented false
-positive; kill set is now G1/G3/G4/G5 + FR-002 Content-Type assertion; SC-001/2
-updated)
+STATUS: COMPLETE (spec-review PASS deleg_129e635c; G2 reclassified EQUIVALENT
+2026-11-18; test-review + product-review PASS deleg_f08811ad on landed code;
+92 tests green, self-score 0.929)
