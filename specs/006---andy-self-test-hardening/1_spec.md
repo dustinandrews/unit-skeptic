@@ -117,8 +117,8 @@ must be killed.
   KILL rows), that FAIL with the corresponding mutant injected (verified by
   running the mutated copy), plus the FR-002 `Content-Type`/body round-trip
   assertion. G2 is NOT part of SC-001 (equivalent mutant — documented).
-- **SC-002**: Full suite green on `main` baseline + new tests (expect 92–93 passed:
-  88 baseline + 4–5 new transport/parser tests).
+- **SC-002**: Full suite green on `main` baseline + new tests (expect 92 passed:
+  88 baseline + 4 new transport/parser tests).
 - **SC-003** (reported, not gating): report the live-Andy self-score on
   `andy.py` after this sprint (deterministic baseline 0.923; live baseline
   0.526). Live score is stochastic (model + network may not re-propose these

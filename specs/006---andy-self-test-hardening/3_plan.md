@@ -45,8 +45,8 @@ deps.
 ## Project Structure (no new files)
 ```
 adversary/adversary/andy.py   # UNTOUCHED (correct)
-adversary/tests/test_andy.py  # +5 new tests (T001–T005), under the existing
-                              # "Real transport" and parse_reply sections
+adversary/tests/test_andy.py  # +4 new committed tests (T001–T004), under the
+                              # existing "Real transport" and parse_reply sections
 ```
 
 ## Task List

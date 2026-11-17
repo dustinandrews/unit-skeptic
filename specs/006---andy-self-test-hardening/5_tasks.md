@@ -42,4 +42,5 @@
   green: **92 passed**.
 
 ## Review Result
-STATUS: Draft
+STATUS: COMPLETE (tasks-review PASS deleg_730773a7 2026-11-18; count 92; stale
+wording in spec/plan corrected)
