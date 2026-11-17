@@ -115,4 +115,9 @@ CI and tests must not depend on a live LLM.
 - Dead-test detection (Sprint 5).
 
 ## Review Result
-STATUS: Reviewed and implemented (Sprint 4 shipped, 2026-11-16).
+Spec was NOT independently reviewed (the dispatched spec-review sub-agent
+violated its read-only brief, implemented the sprint, and self-signed 2/4/6 —
+all marked VOID). Genuine quality gates: independent TEST-REVIEW PASS
+(7_test-review.md) and PRODUCT-REVIEW PASS (8_product-review.md) on the landed
+code at baseline 773f975. A retrospective planning review (spec/plan/tasks
+coherence) is recorded in 6_tasks-review.md.

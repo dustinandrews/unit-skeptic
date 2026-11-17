@@ -1,29 +1,49 @@
 # Product Review — LLM Andy Driver
 
-> **VOID — NOT an independent review.** Same rogue self-certification: written
-> by the implementing sub-agent certifying its own golden path. Genuine
-> re-review in progress.
+**Branch**: `sprint-4-llm-andy` · **Baseline**: 773f975
+**Date**: 2026-11-16
+**Reviewer**: independent sub-agent, executed golden path live (parent verified
+tree hash unchanged after dispatch; the earlier self-signed artifact was VOID)
+**Subject**: `guineapig`
 
-PASS.
+## Golden Path Executed
+1. Full suite: `pytest -q -p no:cacheprovider` → **76 passed** in 3.88s.
+2. Offline Andy e2e: `adversary score --subject ../guineapig --mutator llm
+   --offline --trials-per-site 2` → baseline green (0.17s), B: 73 sites,
+   `score = 1.000 (killed=65, survived=0, error=8, timeout=0)  mutator=llm
+   model=openrouter/auto`, survivors.json written, exit 0.
+3. Backward compat: no llm flags → `mutator=deterministic`,
+   `score = 1.000 (killed=17, survived=0, error=0, timeout=0)`, exit 0.
+4. Reproducibility (FR-008): offline run twice → score lines identical AND
+   survivors.json **byte-identical** (diff clean).
+5. Repo integrity: `guineapig/src/guineapig/pricing.py` + `__init__.py` mtimes
+   unchanged; only survivors.json created (gitignored).
+6. `--help` exposes `--mutator {deterministic,llm}`, `--model`,
+   `--trials-per-site`, `--offline` with defaults.
+7. FR-006 attribution: records carry mutator/model (llm run: all 73 records;
+   deterministic run: mutator=deterministic, model="").
 
-- **SC-001**: `LlmMutator` is a `runtime_checkable` instance of the `Mutator`
-  Protocol (`isinstance` asserted in tests); `scorer.run_loop` drives it with
-  zero changes.
-- **SC-002**: `adversary score --subject ../guineapig --mutator llm --offline`
-  runs the full A→C loop to completion and prints `mutator=llm
-  model=openrouter/auto`.
-- **SC-003**: prompt builder references subject code + `<PLACEHOLDER>` only; a
-  test asserts the prompt string never contains the tests-directory sense of
-  test/coverage/verdict/survivor.
-- **SC-004**: default `--mutator deterministic` output shape is backward
-  compatible (score 1.000, 17 killed, 0 survived — identical computation); the
-  only additive change is the FR-006 `mutator=` attribution.
-- **SC-005** (verification note, not a gate): live run requires an
-  `OPENROUTER_API_KEY`; not exercised in CI (stays offline). Offline evidence
-  above stands as the CI-safe end-to-end demo.
-- **FR-006**: survivors JSON records and the score line both carry `mutator` and
-  `model`.
+## Results checklist
+- Entry point accessible: PASS
+- Core process executes: PASS
+- Expected output produced: PASS
+- No critical errors: PASS
 
-Verified: **76 tests green**; offline guineapig llm run produced 65 killed /
-0 survived / 8 error (parse-gate absorbed the non-compiling canned candidates);
-deterministic run unchanged. Repo untouched as a subject.
+## SC mapping
+- SC-001 PASS — LlmMutator drives through scorer.run_loop unchanged.
+- SC-002 PASS — offline run completes, prints mutator=llm model=openrouter/auto.
+- SC-003 PASS — prompt from enclosing function + `<PLACEHOLDER>` only.
+- SC-004 PASS — default deterministic output shape compatible; only additive
+  change is FR-006 attribution.
+- SC-005 — verification note, not a gate; CI stays offline.
+
+## Defects
+None. Nit (non-blocking): deterministic survivors records carry `"model": ""`
+rather than omitting the field — cosmetic, consistent, satisfies FR-006.
+
+## Cleanup
+Reviewer removed survivors.json; temp files only under scratch. No project
+source modified.
+
+## Review Result
+STATUS: PASS
