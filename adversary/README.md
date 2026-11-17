@@ -23,19 +23,36 @@ green tests it has.
 
 ## It eats its own dog food
 
-We ran unit-skeptic against **its own test suite** (mutation target: `andy.py`,
-the LLM fault generator). The deterministic corpus scored **0.923**; the live
-LLM corpus scored **0.526**, and the survivors exposed real gaps:
+We ran unit-skeptic against **its own test suite**: the mutation target was
+`andy.py` (the LLM fault generator), and the subject suite was unit-skeptic's
+own tests. To read the numbers, two things matter:
 
-- Flipping the transport's `"POST"` to `"GET"` **survived**, the tests guard
-  "API key stays in the header" but never check the HTTP method, encoding,
-  timeout, or endpoint. Every one of those would genuinely break a live call.
+- The **score is the fraction of injected faults the tests caught**:
+  `killed / (killed + survived)`. "Killed" means at least one test failed with
+  that fault in; "survived" means every test still passed.
+- The two fault corpora differ in *how many* faults they inject, so the
+  absolute scores are not directly comparable. The point is not one number vs
+  the other; it is what a richer, realistic fault set reveals.
+
+| corpus | valid faults injected | tests caught | score |
+|--------|----------------------|--------------|-------|
+| deterministic (operator flips) | 13 | 12 | 0.92 |
+| live LLM (realistic faults) | 78 | 41 | 0.53 |
+
+Under the richer LLM corpus, **37 of 78** injected faults survived, meaning no
+test failed while that fault was present. Two of the clearest blind spots:
+
+- Flipping the transport's `"POST"` to `"GET"` **survived**. The tests check
+  that "the API key stays in the header", but never assert the HTTP method,
+  encoding, timeout, or endpoint, so any of those could change and break a live
+  call without tripping a test.
 - An `and` → `or` regression in the reply parser's dedupe/fenced-fallback path
-  **survived**; dupes, empties, and the original snippet leak through
-  uncaught.
+  **survived**; duplicates, empty strings, and the snippet matching the
+  original all leak through uncaught.
 
-The tool found its own test suite was weaker than its 88-green count suggested.
-That is exactly the job it does for you.
+In plain terms: a suite showing 88 green tests still only caught about half of
+the realistic faults we injected into its own code. That is the gap unit-skeptic
+exists to surface, and it did exactly that to itself.
 
 ## Quick start
 
