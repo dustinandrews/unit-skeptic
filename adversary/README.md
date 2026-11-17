@@ -1,9 +1,41 @@
-# Adversary — score instrument
+# unit-skeptic (internally: adversary)
 
-Measures how well a test suite catches realistic faults. For a green Python
-codebase it enumerates mutation sites, injects one fault at a time, runs the
-suite, and reports a **score** = caught fraction, plus a machine-readable list
-of surviving faults (the test-suite's blind spots).
+**The test suite's adversary.** unit-skeptic measures how well a test suite
+actually catches faults — not how many tests are green.
+
+> **Status: rough but promising.** This is under active development. It works
+> end-to-end on its own codebase and a small guinea-pig subject, but expect
+> rough edges, API churn, and missing polish. Feedback and issues welcome.
+
+## What it is
+
+AI (and hasty human) development loves to ship "1235 tests green" — but a green
+count is theatre if the suite catches few *real* regressions. unit-skeptic
+injects one realistic fault at a time into a clean, green codebase, runs the
+suite, and reports:
+
+- a **score** = fraction of injected faults the tests caught;
+- a **machine-readable list of surviving faults** = the suite's actual blind spots;
+- which tests never kill any fault (**dead tests**).
+
+A suite that scores 23% catches 23% of realistic faults — regardless of how many
+green tests it has.
+
+## It eats its own dog food
+
+We ran unit-skeptic against **its own test suite** (mutation target: `andy.py`,
+the LLM fault generator). The deterministic corpus scored **0.923**; the live
+LLM corpus scored **0.526** — and the survivors exposed real gaps:
+
+- Flipping the transport's `"POST"` to `"GET"` **survived** — the tests guard
+  "API key stays in the header" but never check the HTTP method, encoding,
+  timeout, or endpoint. Every one of those would genuinely break a live call.
+- An `and` → `or` regression in the reply parser's dedupe/fenced-fallback path
+  **survived** — dupes, empties, and the original snippet leak through
+  uncaught.
+
+The tool found its own test suite was weaker than its 88-green count suggested.
+That is exactly the job it does for you.
 
 ## Quick start
 
@@ -11,18 +43,71 @@ of surviving faults (the test-suite's blind spots).
 python -m adversary.cli score --subject /path/to/subject
 ```
 
-Example against the guinea-pig subject:
+Existing setup is Python 3.11+, stdlib-only (no runtime third-party deps). For
+the live LLM corpus you additionally need an OpenRouter key (see below).
+
+Subcommands: `score` | `equiv` | `deadtests`. Each takes `--subject <dir>`.
+
+## Live LLM corpus ("Andy")
+
+The default `DeterministicMutator` flips operators (`==`↔`!=`, `<`↔`>=`,
+`and`↔`or`, …). For more realistic faults, the `--mutator llm` driver ("Andy") is
+a blind, stateless LLM fault generator — its prompt is the enclosing function
+with the target region blanked, drawn from subject source only (never tests,
+coverage, verdicts, or survivors).
+
+```bash
+python -m adversary.cli score --subject /path/to/subject --mutator llm \
+    --model openrouter/auto [--offline]
+```
+
+### Key configuration
+
+Copy the example and fill in your key, or export it:
+
+```bash
+cp .env.example .env      # then edit .env
+# or
+export OPENROUTER_API_KEY=sk-or-...
+```
+
+The key travels **only** in the `Authorization` header — never in the prompt,
+request body, or surviving-fault output. `.env` is gitignored; commit
+`.env.example`, never `.env`.
+
+## Score & verdicts
 
 ```
-A: baseline green in 0.14s
-B: 73 sites
-score = 1.000  (killed=17, survived=0, error=0, timeout=0)
-survivors written to survivors.json
+score = killed / (killed + survived)
 ```
 
-`score = killed / (killed + survived)`; `error` and `timeout` verdicts are
-excluded from the denominator (they are not valid faults). `score >= 0.8` is
-the acceptance threshold.
+`error` (mutant didn't parse / couldn't run) and `timeout` are excluded from the
+denominator — they are not valid faults. `score >= 0.8` is the acceptance
+threshold.
+
+| verdict | meaning |
+|---------|---------|
+| `killed` | ≥1 test failed with this fault injected (good) |
+| `survived` | all tests still passed (suite blind spot) |
+| `error` | mutant invalid / un-runnable; excluded |
+| `timeout` | suite exceeded wall clock; excluded |
+
+## More
+
+- **`adversary equiv`** — cheap mechanical first-pass triage of survivors into
+  `equivalent` / `killable` / `undecided` via two clean A/B code blocks to a JEV
+  decision model (so equivalent-mutant false positives aren't charged to the
+  score). Subject is read-only.
+- **`adversary deadtests`** — flags tests that never kill a fault
+  (corpus-qualified: a test is `dead` under the *deterministic* corpus unless a
+  richer LLM corpus would kill it).
+
+See the per-command docs below for full usage.
+
+---
+
+*(The detailed design docs follow — sites/mutators/runner internals, the JEV
+triage A/B block builder and decision bucketing, and dead-test semantics.)*
 
 ## The Mutator adapter (swappable)
 
@@ -40,12 +125,9 @@ loop:
 Shipped implementations:
 - `DeterministicMutator` (rule-based operator flips: `==`↔`!=`, `<`↔`>=`,
   `<=`↔`>`, `and`↔`or`; whole-token matching, deterministic, zero LLM cost).
-- `LlmMutator` ("Andy", `adversary score --mutator llm --offline`) — blind,
-  stateless LLM fault generator behind the same Protocol. Its prompt is the
-  enclosing function with the site blanked to `<PLACEHOLDER>` (subject source
-  only — never tests/coverage/verdicts), it returns 1..N replacement snippets,
-  and the transport is an injectable seam (live OpenRouter via stdlib urllib,
-  key header-only; deterministic offline stub keeps CI key/network-free).
+- `LlmMutator` ("Andy") — blind, stateless LLM fault generator behind the same
+  Protocol, with an injectable transport seam (live OpenRouter via stdlib
+  urllib, key header-only; deterministic offline stub keeps CI key/network-free).
 
 ## Survivor triage — JEV equivalence (`adversary equiv`)
 
@@ -119,17 +201,10 @@ failures are noise, matching the score denominator). Subject is read-only.
 - `scorer.py` — loop, score formula, survivors JSON.
 - `equiv.py` — JEV equivalence triage: A/B block builder, decision seam,
   confidence bucketing, triage driver.
-- `andy.py` — `LlmMutator` (Sprint 4): blind LLM fault generator + transport
-  seam (live OpenRouter / offline stub) + prompt builder / reply parser.
-- `deadtests.py` — pure kill-aggregation + the `run_deadtests` driver (Sprint 5).
+- `andy.py` — `LlmMutator`: blind LLM fault generator + transport seam (live
+  OpenRouter / offline stub) + prompt builder / reply parser.
+- `deadtests.py` — pure kill-aggregation + the `run_deadtests` driver.
 - `cli.py` — `adversary score | equiv | deadtests --subject <dir> ...`.
-
-## Verdict taxonomy
-
-- `killed` — at least one test failed with this fault injected (good).
-- `survived` — all tests still passed (test-suite blind spot).
-- `error` — the mutant did not parse / could not run; excluded.
-- `timeout` — the suite exceeded the wall clock; excluded.
 
 ## Dev
 
