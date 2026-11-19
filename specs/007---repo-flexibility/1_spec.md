@@ -40,11 +40,29 @@ aggregation all stay as-built).
 `runner.run_mutant` already accept `tests_rel="tests"`; extend both with a
 `python=None` keyword (None → `sys.executable`) and thread both into the pytest
 subprocess (`[<python>, -m, pytest, ...]`; `python` may be a path or an
-executable basename, resolved as `subprocess` resolves it). `scorer.run_loop`
-keeps its signature but its default `run_mutant_impl` lambda must forward
-`tests_rel`/`python` when the caller supplies them (via closure), so the
-per-mutant loop honors the flags; `cli.run_score` builds the lambda with the
-effective `tests_rel`/`python`.
+executable basename, resolved as `subprocess` resolves it). Responsibility for
+forwarding `tests_rel`/`python` sits **100% with the callers**: `cli.run_score`
+builds and passes to `scorer.run_loop` a `run_mutant_impl` closure that
+captures the effective values (compatible with the existing injection seam —
+`run_loop` always uses the injected impl when provided and yields to it for
+extra kwargs). `scorer.run_loop`'s signature is NOT changed and its default
+lambda stays as-is (bare defaults, no flags). No `tests_rel`/`python` become
+`run_loop` parameters.
+**Changed CLI surface.** `cli.run_score(subject_dir, src_rel="src",
+tests_rel="tests", python=None, ...)` and `cli.run_deadtests(subject_dir,
+src_rel="src", tests_rel="tests", python=None, out_path=None, ...)` thread the
+three values into their inner calls and the corresponding `argparse`
+subparsers (`score` 134-144, `deadtests` 153-155, `equiv` 146-152 for
+`--src-rel` only) gain the new `--src-rel`/`--tests-rel`/`--python` args.
+`cli._find_py_module` and both `src_dir = subject/src` sites (cli.run_equiv 93,
+deadtests.run_deadtests 88) interpolate the effective `src_rel`. The error
+strings that currently hardcode `"src"` (cli.py:39, deadtests.py:99) interpolate
+the effective `src_rel` so `--src-rel` runs report the real path.
+**SC-003 test seam.** No production code records `sys.executable`; SC-003 is
+proved by a unit test that monkeypatches `runner.subprocess.run` (or
+`runner._pytest`) to capture the `cmd` list and return a fake rc=0 result, then
+asserts the pytest subprocess's interpreter equals the supplied `--python`
+path — capturing both the oracle and first-mutant invocations.
 
 - **FR-001 (`--src-rel`)**: `score`, `equiv`, and `deadtests` accept
   `--src-rel <path>` (default `"src"`). `cli._find_py_module(subject_dir,
@@ -85,10 +103,11 @@ effective `tests_rel`/`python`.
   oracle — where the root `tests/` default produces a non-green/collection
   failure. Proved by a committed unit test with a tmp-dir synthetic subject
   (no external repo dependency; deterministic).
-- **SC-003 (python)**: With `--python <synthetic venv python>`, the oracle +
-  first mutation subprocess runs under that interpreter. Proved by a
-  unit test that asserts the recorded `sys.executable` of the pytest
-  subprocess equals the given `--python` path. Deterministic.
+- **SC-003 (python)**: With `--python <venv python>`, the oracle + first
+  mutation pytest subprocess runs under that interpreter. Proved by a unit test
+  that monkeypatches `runner.subprocess.run`/`runner._pytest` to capture each
+  `cmd` list and return a fake rc=0 result, then asserts the pytest
+  subprocess interpreter equals the given `--python` path. Deterministic.
 - **SC-004 (src-rel)**: With `--src-rel src`, `_find_py_module` returns a py
   file under `src/` for a `src/<pkg>/...` synthetic subject, and `score`'s
   site enumeration emits a non-empty site list (no "no python module under
@@ -98,4 +117,7 @@ effective `tests_rel`/`python`.
 - **SC-006 (still 92)**: full unit-skeptic suite stays 92 passed, 0 failed.
 
 ## Review Result
-STATUS: Draft
+STATUS: COMPLETE (spec-review PASS deleg_a7e0dd5b 2026-11-18; actions taken:
+common-plumbing forwarding moved 100% to caller closures; changed CLI surface
+named (run_score/run_deadtests + argparse); error strings interpolate effective
+src_rel; SC-003 test seam = monkeypatch of runner.subprocess.run/_pytest)
