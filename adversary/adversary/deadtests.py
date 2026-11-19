@@ -70,7 +70,8 @@ def to_json(kill_map, out_path=None):
     return text
 
 
-def run_deadtests(subject_dir, out_path=None):
+def run_deadtests(subject_dir, out_path=None, src_rel="src", tests_rel="tests",
+                  python=None):
     """Walk sites + deterministic mutants, attribute kills per test, emit JSON.
 
     Green-gate -> enumerate sites via DeterministicMutator -> run each distinct
@@ -85,7 +86,7 @@ def run_deadtests(subject_dir, out_path=None):
     from adversary import runner, sites
     from adversary.mutators import DeterministicMutator
 
-    src_dir = os.path.join(subject_dir, "src")
+    src_dir = os.path.join(subject_dir, src_rel)
     # Locate the first module under src (same convention as the score CLI).
     module_rel = None
     for root, _dirs, files in os.walk(src_dir):
@@ -96,7 +97,7 @@ def run_deadtests(subject_dir, out_path=None):
         if module_rel:
             break
     if module_rel is None:
-        raise RuntimeError(f"no python module under {subject_dir}/src")
+        raise RuntimeError(f"no python module under {subject_dir}/{src_rel}")
 
     source = open(os.path.join(src_dir, module_rel)).read()
 
@@ -113,7 +114,8 @@ def run_deadtests(subject_dir, out_path=None):
             try:
                 junit = os.path.join(junit_dir, "report.xml")
                 result = runner.run_mutant(subject_dir, module_rel, mutated,
-                                           src_dir=src_dir, junit_path=junit)
+                                           src_dir=src_dir, tests_rel=tests_rel,
+                                           python=python, junit_path=junit)
             finally:
                 shutil.rmtree(junit_dir, ignore_errors=True)
             if isinstance(result, tuple):
@@ -122,13 +124,14 @@ def run_deadtests(subject_dir, out_path=None):
     kill_map = aggregate_kills(runs)
     # Zero-kill tests must appear as dead: they never produced a failing junit,
     # so enumerate the full test list from a clean baseline run and seed zeros.
-    all_tests = _baseline_test_ids(subject_dir, src_dir)
+    all_tests = _baseline_test_ids(subject_dir, src_dir, tests_rel=tests_rel,
+                                   python=python)
     for tid in all_tests:
         kill_map.setdefault(tid, 0)
     return to_json(kill_map, out_path)
 
 
-def _baseline_test_ids(subject_dir, src_dir):
+def _baseline_test_ids(subject_dir, src_dir, tests_rel="tests", python=None):
     """Full test id list from a clean green-gate junit run (stdlib+ET only)."""
     import os
     import shutil
@@ -147,7 +150,7 @@ def _baseline_test_ids(subject_dir, src_dir):
         import subprocess
         import sys
         subprocess.run(
-            [sys.executable, "-m", "pytest", "tests", "-q", "-p",
+            [python or sys.executable, "-m", "pytest", tests_rel, "-q", "-p",
              "no:cacheprovider", "-o", "pythonpath=",
              "--junitxml=" + os.path.abspath(junit)],
             cwd=subject_dir, env=env, capture_output=True, timeout=runner.DEFAULT_TIMEOUT_S)

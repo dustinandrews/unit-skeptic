@@ -58,12 +58,14 @@ def _pytest(cmd, subject_dir, env, timeout_s):
         return None, time.time() - t0
 
 
-def run_oracle(subject_dir, src_dir, tests_rel="tests", timeout_s=DEFAULT_TIMEOUT_S):
+def run_oracle(subject_dir, src_dir, tests_rel="tests", python=None,
+               timeout_s=DEFAULT_TIMEOUT_S):
     """Run the subject's pytest suite against a clean src. Return (rc, secs, note)."""
     env = dict(os.environ)
     env["PYTHONPATH"] = os.path.abspath(src_dir) + os.pathsep + env.get("PYTHONPATH", "")
+    py = python or sys.executable
     proc, secs = _pytest(
-        [sys.executable, "-m", "pytest", tests_rel, "-q", "-p",
+        [py, "-m", "pytest", tests_rel, "-q", "-p",
          "no:cacheprovider", "-o", "pythonpath="],
         subject_dir, env, timeout_s,
     )
@@ -90,7 +92,8 @@ def _copy_pkg_inits(scratch, module_rel, src_dir):
 
 
 def run_mutant(subject_dir, module_rel, mutated_source, src_dir=None,
-               tests_rel="tests", timeout_s=DEFAULT_TIMEOUT_S, junit_path=None):
+               tests_rel="tests", python=None, timeout_s=DEFAULT_TIMEOUT_S,
+               junit_path=None):
     """Run the subject suite against a mutated copy of one module.
 
     `module_rel` is the module's path RELATIVE to `src_dir` (e.g.
@@ -130,7 +133,8 @@ def run_mutant(subject_dir, module_rel, mutated_source, src_dir=None,
             path.append(os.path.abspath(src_dir))
         env["PYTHONPATH"] = os.pathsep.join(path) + os.pathsep + env.get("PYTHONPATH", "")
         env["PYTHONDONTWRITEBYTECODE"] = "1"
-        cmd = [sys.executable, "-m", "pytest", tests_rel, "-q", "-p",
+        py = python or sys.executable
+        cmd = [py, "-m", "pytest", tests_rel, "-q", "-p",
                "no:cacheprovider", "-o", "pythonpath="]
         if junit_path is not None:
             # Must be absolute: a relative path resolves against the CALLING

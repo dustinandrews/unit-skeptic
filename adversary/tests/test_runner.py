@@ -207,6 +207,91 @@ def test_run_mutant_junit_path_absolute_required(tmp_path):
     assert not os.path.exists(os.path.join(subj["src"], "rel_junit.xml"))
 
 
+def _write_subject_with_nested_tests(dirpath):
+    """Subject with tests under src/tests (not root tests/) — SC-002.
+
+    Real repos (e.g. AIEmailSummary) keep tests inside the source tree. The
+    runner must be told --tests-rel src/tests; the default (tests) finds
+    nothing and pytest exits non-green (no tests collected).
+    """
+    src = os.path.join(dirpath, "src")
+    tests = os.path.join(src, "tests")
+    os.makedirs(os.path.join(src, "mod.py") and src, exist_ok=True)
+    os.makedirs(tests, exist_ok=True)
+    with open(os.path.join(src, "mod.py"), "w") as fh:
+        fh.write("def is_positive(n):\n    return n > 0\n")
+    with open(os.path.join(tests, "test_mod.py"), "w") as fh:
+        fh.write("from mod import is_positive\n"
+                 "def test_positive():\n    assert is_positive(5)\n")
+    return {"dir": dirpath, "src": src}
+
+
+# --- repo-flexibility (Sprint 7) --------------------------------------------
+
+def test_oracle_default_tests_misses_nested_tests(tmp_path):
+    """SC-002 RED: default tests_rel='tests' finds no tests under src/tests.
+
+    pytest exits non-zero (5, no tests collected) because there is no root
+    tests/ dir, only src/tests/.
+    """
+    subj = _write_subject_with_nested_tests(str(tmp_path))
+    rc, _secs, note = runner.run_oracle(subj["dir"], subj["src"])
+    assert rc != 0
+    assert note == ""
+
+
+def test_oracle_tests_rel_src_tests_reaches_green(tmp_path):
+    """SC-002 GREEN: --tests-rel src/tests makes the nested-tests subject green."""
+    subj = _write_subject_with_nested_tests(str(tmp_path))
+    rc, _secs, note = runner.run_oracle(subj["dir"], subj["src"], tests_rel="src/tests")
+    assert rc == 0
+    assert note == ""
+
+
+def test_oracle_uses_supplied_python_interpreter(tmp_path, monkeypatch):
+    """SC-003: run_oracle drives the pytest subprocess under the given --python.
+
+    No production code records sys.executable; exercise the subprocess command
+    directly by capturing what runner.subprocess.run is asked to launch.
+    """
+    captured = {}
+    class FakeProc:
+        returncode = 0
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        return FakeProc()
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    subj = _write_subject(str(tmp_path))
+    rc, _secs, note = runner.run_oracle(subj["dir"], subj["src"], python="/venv/bin/python")
+    assert rc == 0
+    assert captured["cmd"][0] == "/venv/bin/python"
+    assert captured["cmd"][1:3] == ["-m", "pytest"]
+
+
+def test_mutant_uses_supplied_python_interpreter(tmp_path, monkeypatch):
+    """SC-003: run_mutant drives the pytest subprocess under the given --python.
+
+    The first-mutant subprocess must also honor --python (the oracle alone is
+    not enough; the mutation loop runs pytest per candidate).
+    """
+    captured = {}
+    class FakeProc:
+        returncode = 0
+    def fake_run(cmd, **kwargs):
+        captured.setdefault("cmds", []).append(cmd)
+        return FakeProc()
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    subj = _write_subject(str(tmp_path))
+    original = _module(os.path.join(subj["src"], "subject_mod.py"))
+    mutated = _full_module(original, "return n > 0 and True")  # survives
+    verdict = runner.run_mutant(subj["dir"], "subject_mod.py", mutated,
+                                src_dir=subj["src"], python="/venv/bin/python")
+    assert verdict == "survived"
+    assert captured["cmds"], "expected a pytest subprocess to be launched"
+    assert captured["cmds"][0][0] == "/venv/bin/python"
+    assert captured["cmds"][0][1:3] == ["-m", "pytest"]
+
+
 def test_junit_nodeid_reconstruction():
     """T001: nodeid = classname::name (plan-review finding #7).
 

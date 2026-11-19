@@ -108,3 +108,67 @@ def test_equiv_help(tmp_path, capsys):
         assert e.code == 0
     out = capsys.readouterr().out
     assert "--survivors" in out and "--subject" in out
+
+
+# --- repo-flexibility (Sprint 7) --------------------------------------------
+
+def test_find_py_module_with_src_rel(tmp_path):
+    """SC-004: _find_py_module(src_rel) returns a .py under the given src dir."""
+    subj = tmp_path / "s"
+    pkg = subj / "src" / "email_router"
+    pkg.mkdir(parents=True, exist_ok=True)
+    (pkg / "__init__.py").write_text("")
+    (pkg / "models.py").write_text("X = 1\n")
+    src_dir, module_rel = cli._find_py_module(str(subj), src_rel="src")
+    assert os.path.basename(src_dir) == "src"
+    assert module_rel == os.path.join("email_router", "models.py")
+
+
+def test_find_py_module_default_src(tmp_path):
+    """SC-004: default src_rel='src' still resolves a package under src/."""
+    subj = tmp_path / "s"
+    pkg = subj / "src" / "pkg"
+    pkg.mkdir(parents=True, exist_ok=True)
+    (pkg / "__init__.py").write_text("")
+    (pkg / "mod.py").write_text("def f():\n    return 1\n")
+    src_dir, module_rel = cli._find_py_module(str(subj))
+    assert os.path.basename(src_dir) == "src"
+    assert module_rel == os.path.join("pkg", "mod.py")
+
+
+def test_run_score_error_message_shows_effective_src_rel(tmp_path, capsys):
+    """SC-004: the 'no python module' error interpolates the effective src_rel."""
+    subj = tmp_path / "s"
+    subj.mkdir()
+    rc = cli.run_score(str(subj), src_rel="email_router")
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "email_router" in err and "/src" not in err
+
+
+def test_run_score_records_python_attr_when_supplied(tmp_path, monkeypatch):
+    """SC-005: a non-default --python is recorded as attrs.python in survivors.json.
+
+    Monkeypatch the runner's subprocess to green-gate + survive every mutant so
+    the loop writes survivors deterministically without launching pytest.
+    """
+    from adversary import runner
+
+    subject_dir, mod_path = _make_subject(tmp_path)
+    # green gate + every mutant run "succeed" (rc=0 -> survived).
+    class FakeProc:
+        returncode = 0
+    calls = []
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return FakeProc()
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+
+    rc = cli.run_score(subject_dir, python="/gave/venv/python")
+    assert rc == 0
+    survivors = os.path.join(os.getcwd(), "survivors.json")
+    assert os.path.exists(survivors)
+    docs = json.load(open(survivors))
+    assert docs, "expected at least one mutant record"
+    assert all(r["python"] == "python" for r in docs)  # basename('/gave/venv/python')
+    os.remove(survivors)
