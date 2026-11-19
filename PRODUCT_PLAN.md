@@ -95,9 +95,10 @@ surviving faults = the actionable gap list; dead tests = detectable noise).
   enumeration). Non-default `--python` is recorded as `attrs.python` in
   survivors.json for reproducibility. Error strings interpolate the effective
   `src_rel`.
-- Verified: **100 tests green** (92 + 8 new, incl. a nested-`src/tests`
-  synthetic subject and a captured-subprocess `--python` check); default-flag
-  guineapig run bit-identical (73 sites, score 1.000).
+- Verified: **101 tests green** (92 + 9 new, incl. a nested-`src/tests`
+  synthetic subject, a captured-subprocess `--python` check, and a
+  deadtests-threading capture); default-flag guineapig run bit-identical
+  (73 sites, score 1.000).
 
 ## Next (ordered)
 Sprint 8 candidates (parked, none active):

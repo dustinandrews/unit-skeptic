@@ -73,7 +73,7 @@
   preserve all prior behavior; flags let real repos (tests under `src/tests`,
   own venv python) be scored. `--python` non-default is recorded as
   `attrs.python` in survivors.json. All plumbing; no change to mutation or
-  scoring semantics. 100 tests green.
+  scoring semantics. 101 tests green.
 
 ## Dependencies
 - Guinea-pig: none beyond stdlib + pytest.

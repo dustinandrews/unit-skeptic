@@ -254,5 +254,5 @@ failures are noise, matching the score denominator). Subject is read-only.
 ## Dev
 
 ```bash
-.venv/bin/python -m pytest -q -p no:cacheprovider   # 100 tests
+.venv/bin/python -m pytest -q -p no:cacheprovider   # 101 tests
 ```
