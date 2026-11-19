@@ -115,6 +115,28 @@ threshold.
 | `error` | mutant invalid / un-runnable; excluded |
 | `timeout` | suite exceeded wall clock; excluded |
 
+## Scoring real, non-flat repos
+
+By default `score` assumes a self-contained `src/` + `tests/` subject and runs
+pytest with the tool's own interpreter. Real repos often don't fit that shape:
+tests may live under `src/tests`, and the subject has its own virtualenv whose
+compiled dependencies the tool's interpreter can't load. Three flags relax
+those assumptions (each defaults to the current behavior):
+
+```
+python -m adversary.cli score --subject /path/to/subject \
+    --src-rel src/email_router \   # dir under --subject holding source (default src)
+    --tests-rel src/tests \        # dir under --subject holding tests (default tests)
+    --python /path/to/venv/bin/python   # interpreter for pytest runs (default sys.executable)
+```
+
+Example (a real mail-summary service whose package lives at `src/email_router`
+and whose tests live at `src/tests`): `score --subject <repo> --src-rel
+src/email_router --tests-rel src/tests --python <repo>/venv/bin/python`.
+`equiv` and `deadtests` accept the same flags they need (`--src-rel` on all
+three; `--tests-rel`/`--python` additionally on `score` and `deadtests`, which
+run the suite). Omit a flag to keep the corresponding default.
+
 ## More
 
 - **`adversary equiv`**, cheap mechanical first-pass triage of survivors into
@@ -232,5 +254,5 @@ failures are noise, matching the score denominator). Subject is read-only.
 ## Dev
 
 ```bash
-.venv/bin/python -m pytest -q -p no:cacheprovider   # 88 tests
+.venv/bin/python -m pytest -q -p no:cacheprovider   # 100 tests
 ```

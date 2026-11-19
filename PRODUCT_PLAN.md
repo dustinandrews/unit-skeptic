@@ -82,8 +82,25 @@ surviving faults = the actionable gap list; dead tests = detectable noise).
   os.environ` `and`→`or` — new gap outside this sprint's kill set, recorded
   for follow-up).
 
+### Sprint 7: Repo-flexible subjects
+- Real-repo pilot on `~/projects/AIEmailSummary` (user-suggested, [2026-11-18]):
+  full suite **303 green**, but `score` couldn't run it — three rigid
+  assumptions (tests at `<subject>/tests`, own `sys.executable`, first module
+  under `<subject>/src`) fit only self-contained toy subjects.
+- Added explicit flags (defaults preserve every prior behavior): `--src-rel`
+  (source dir under `--subject`, default `src`), `--tests-rel` (suite dir,
+  default `tests`), `--python` (interpreter for pytest subprocesses, default
+  `sys.executable`). Threaded through `runner`, `scorer` (caller-owned closure,
+  signature unchanged), `cli`, and `deadtests` (incl. its baseline id
+  enumeration). Non-default `--python` is recorded as `attrs.python` in
+  survivors.json for reproducibility. Error strings interpolate the effective
+  `src_rel`.
+- Verified: **100 tests green** (92 + 8 new, incl. a nested-`src/tests`
+  synthetic subject and a captured-subprocess `--python` check); default-flag
+  guineapig run bit-identical (73 sites, score 1.000).
+
 ## Next (ordered)
-Sprint 7 candidates (parked, none active):
+Sprint 8 candidates (parked, none active):
 - Dead-test *explanation* (why a test is dead: tautology vs unreachable
   corpus). Design decided ([2026-11-18]): verdict + raw reason are MECHANICAL
   (summarize already-collected kill data: which sites/operators a dead test
@@ -92,4 +109,8 @@ Sprint 7 candidates (parked, none active):
   plain-language prose). Avoids an LLM broadly judging tests it never ran.
 - LLM/Andy corpus for dead-tests (richer faults would clear the 9
   constant-asserting tests).
-- Real-repo pilot (run the instrument against a larger live codebase).
+- Score the AIEmailSummary suite end-to-end with the Sprint 7 flags (the pilot
+  now has the tool flexibility to run it; exercise a real large repo).
+- New `.env`-loader survivor revealed in S6 dogfood (`key and ... not in
+  os.environ` `and`→`or` would break "export wins over .env") — test-side fix
+  for the tool's own suite.
