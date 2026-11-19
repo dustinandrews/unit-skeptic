@@ -51,4 +51,5 @@
   the flags.
 
 ## Review Result
-STATUS: COMPLETE (tasks-review PASS deleg_03201680 2026-11-18; count reworded to 92+N)
+STATUS: COMPLETE (tasks-review PASS deleg_03201680; count reworded 92+N;
+post-review gap closed: deadtests-threading capture test added → 101 green)

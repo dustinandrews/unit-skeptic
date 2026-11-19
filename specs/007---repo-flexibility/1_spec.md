@@ -120,7 +120,7 @@ path — capturing both the oracle and first-mutant invocations.
   tests.
 
 ## Review Result
-STATUS: COMPLETE (spec-review PASS deleg_a7e0dd5b 2026-11-18; actions taken:
-common-plumbing forwarding moved 100% to caller closures; changed CLI surface
-named (run_score/run_deadtests + argparse); error strings interpolate effective
-src_rel; SC-003 test seam = monkeypatch of runner.subprocess.run/_pytest)
+STATUS: COMPLETE (spec-review PASS deleg_a7e0dd5b; plan-review PASS
+deleg_207e6710; tasks-review PASS deleg_03201680; test-review + product-review
+PASS deleg_11db05f4 on landed code with the deadtests-threading gap closed;
+101 tests green, defaults byte-identical)
