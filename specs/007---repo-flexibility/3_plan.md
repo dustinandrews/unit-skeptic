@@ -47,8 +47,13 @@ adversary/tests/test_deadtests.py# + tests-rel/python threading
    `run_score(subject_dir, src_rel="src", tests_rel="tests", python=None)`,
    `run_equiv(subject_dir, src_rel="src")`, and
    `run_deadtests(subject_dir, src_rel="src", tests_rel="tests", python=None,
-   out_path=None)`. `_find_py_module`/both `src_dir = join(subject, src_rel)`
-   interpolate the effective src_rel. Update the hardcoded `"src"` error strings
+   out_path=None)`. **Green gate seam**: `cli.run_score`'s call to
+   `runner.run_oracle(subject_dir, src_dir)` (cli.py:46) must pass the
+   effective `tests_rel` and `python` so the oracle honors the flags. **Dispatch
+   seam**: `main()`'s `args.* → func(...)` calls (cli.py:156-165) must forward
+   the new argparse attributes to `run_score`/`run_equiv`/`run_deadtests`.
+   `_find_py_module`/both `src_dir = join(subject, src_rel)` interpolate the
+   effective src_rel. Update the hardcoded `"src"` error strings
    (cli.py:39, deadtests.py:99) to interpolate. Record
    `attrs.python = basename(python)` in `record_attrs` when non-default (score).
 4. **T004 — deadtests threading** [P1] `deadtests.run_deadtests` accepts and
@@ -71,4 +76,4 @@ adversary/tests/test_deadtests.py# + tests-rel/python threading
    Sprint 7 Done; `TECH_STACK.md` note.
 
 ## Review Result
-STATUS: Draft
+STATUS: COMPLETE (plan-review PASS deleg_207e6710 2026-11-18; green-gate run_oracle seam + main() dispatch seam named in T003)
