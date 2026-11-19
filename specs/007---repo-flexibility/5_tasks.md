@@ -41,7 +41,8 @@
   shows effective src_rel.
 - [ ] T009 [P] SC-005: non-default `--python` → `attrs.python == basename` in
   survivors.json.
-- [ ] T010 [P] Regression: full suite stays 92 (SC-001/SC-006).
+- [ ] T010 [P] Regression: existing 92 stay green, 0 failed; full suite grows
+  to 92+N (SC-001/SC-006).
 
 ## Phase 4: Docs + verify (P2)
 - [ ] T011 [P2] README ("Scoring real, non-flat repos", AIEmailSummary example
@@ -50,4 +51,4 @@
   the flags.
 
 ## Review Result
-STATUS: Draft
+STATUS: COMPLETE (tasks-review PASS deleg_03201680 2026-11-18; count reworded to 92+N)

@@ -70,7 +70,8 @@ adversary/tests/test_deadtests.py# + tests-rel/python threading
      returns a py under src, non-empty site list, error string shows effective
      src_rel.
    - SC-005: non-default `--python` → `attrs.python == basename` in survivors.
-   - Regression: full suite stays 92 (SC-001/SC-006).
+   - Regression: existing 92 stay green, 0 failed; suite grows to 92+N
+     (SC-001/SC-006).
 6. **T006 — docs** [P2] `adversary/README.md` "Scoring real, non-flat repos"
    section (three flags, AIEmailSummary example anonymized); `PRODUCT_PLAN.md`
    Sprint 7 Done; `TECH_STACK.md` note.

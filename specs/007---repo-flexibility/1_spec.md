@@ -97,7 +97,8 @@ path — capturing both the oracle and first-mutant invocations.
 - **SC-001 (defaults unchanged)**: With no flags, `score/equiv/deadtests`
   against the existing guineapig subject produce the same verdicts as before
   (regression guard: `test_score_loop_*` and `test_cli_*` still green; the
-  full suite count stays 92).
+  existing 92 tests remain green, and the suite grows to 92+N with the new
+  flag unit tests).
 - **SC-002 (tests-rel)**: With `--tests-rel src/tests`, a SYNTHETIC subject
   whose tests live under `src/tests/` (not root `tests/`) reaches a **green**
   oracle — where the root `tests/` default produces a non-green/collection
@@ -114,7 +115,9 @@ path — capturing both the oracle and first-mutant invocations.
   <subject>/src" error).
 - **SC-005 (record attrs)**: a non-default `--python` value is captured in
   `survivors.json` record `attrs.python` (reproducibility).
-- **SC-006 (still 92)**: full unit-skeptic suite stays 92 passed, 0 failed.
+- **SC-006 (regression green)**: the existing 92 unit-skeptic tests stay
+  passed, 0 failed; the full suite grows to 92+N with the new flag unit
+  tests.
 
 ## Review Result
 STATUS: COMPLETE (spec-review PASS deleg_a7e0dd5b 2026-11-18; actions taken:
