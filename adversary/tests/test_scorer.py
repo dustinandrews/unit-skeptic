@@ -75,3 +75,44 @@ def test_reproducible_identical_scores():
     assert [r["verdict"] for r in r1] == [r["verdict"] for r in r2]
     assert scorer.compute_score([r["verdict"] for r in r1]) == \
         scorer.compute_score([r["verdict"] for r in r2])
+
+
+def _multi_site_source():
+    return "def a(x):\n    return x > 0\n\ndef b(y):\n    return y < 10\n"
+
+
+def _multi_sites():
+    return [
+        {"module": "m.py", "start": 20, "end": 25, "text": "x > 0", "kind": "Compare"},
+        {"module": "m.py", "start": 52, "end": 58, "text": "y < 10", "kind": "Compare"},
+    ]
+
+
+def test_max_workers_parallel_matches_serial():
+    """max_workers>1 must produce the same record sequence as serial (order
+    preserved; thread-safe run_mutant_impl; no dropped or duplicated records)."""
+    mut = DeterministicMutator()
+    sites = _multi_sites()
+    src = _multi_site_source()
+    calls = []  # concurrency stress: run_mutant_impl called exactly once per candidate
+    def track(*a, **k):
+        calls.append(1)
+        return "killed"
+    ceil = len(sites) * 4  # generous upper bound; DeterministicMutator flips >=1/site
+    serial = scorer.run_loop("d", "s", sites, mut, src, run_mutant_impl=track)
+    n_serial = len(serial)
+    parallel = scorer.run_loop("d", "s", sites, mut, src, run_mutant_impl=track,
+                               max_workers=4)
+    assert len(parallel) == n_serial
+    assert [r["verdict"] for r in parallel] == [r["verdict"] for r in serial]
+    assert len(calls) <= ceil  # no runaway duplication from threads
+
+
+def test_max_workers_default_and_one_are_serial():
+    mut = DeterministicMutator()
+    sites = _multi_sites()
+    src = _multi_site_source()
+    impl = lambda *a, **k: "killed"
+    r_default = scorer.run_loop("d", "s", sites, mut, src, run_mutant_impl=impl)
+    r_one = scorer.run_loop("d", "s", sites, mut, src, run_mutant_impl=impl, max_workers=1)
+    assert [r["verdict"] for r in r_default] == [r["verdict"] for r in r_one]

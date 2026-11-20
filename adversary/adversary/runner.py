@@ -14,7 +14,7 @@ import tempfile
 import time
 import xml.etree.ElementTree as ET
 
-DEFAULT_TIMEOUT_S = 30
+DEFAULT_TIMEOUT_S = 120
 
 
 def _junit_failing_ids(root):

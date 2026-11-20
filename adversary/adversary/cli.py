@@ -26,7 +26,8 @@ def _find_py_module(subject_dir, src_rel="src"):
 
 
 def run_score(subject_dir, mutator="deterministic", model=None, trials=1,
-              offline=False, src_rel="src", tests_rel="tests", python=None):
+              offline=False, src_rel="src", tests_rel="tests", python=None,
+              max_workers=1):
     """Green gate -> enumerate sites -> loop -> print score. Returns exit code.
 
     ``--mutator`` selects the fault generator: ``deterministic`` (default,
@@ -76,7 +77,7 @@ def run_score(subject_dir, mutator="deterministic", model=None, trials=1,
                               module_rel=module_rel,
                               run_mutant_impl=impl,
                               out_path=os.path.join(os.getcwd(), "survivors.json"),
-                              record_attrs=record_attrs)
+                              record_attrs=record_attrs, max_workers=max_workers)
     verdicts = [r["verdict"] for r in records]
     score = scorer.compute_score(verdicts)
     attribution = f"mutator={mutator}"
@@ -163,6 +164,9 @@ def main(argv=None):
     ps.add_argument("--python", default=None,
                     help="interpreter for pytest subprocesses (default sys.executable; "
                          "point at the subject's venv for non-flat repos)")
+    ps.add_argument("--max-workers", type=int, default=1,
+                    help="run mutant sites across N threads (default 1); speeds up "
+                         "large real-repo subjects (suite runs release the GIL)")
     pe = sub.add_parser("equiv", help="triage survivors by JEV equivalence")
     pe.add_argument("--subject", required=True, help="path to subject repo (read-only)")
     pe.add_argument("--survivors", required=True, help="survivors JSON (scorer output)")
@@ -187,7 +191,7 @@ def main(argv=None):
         return run_score(args.subject, mutator=args.mutator, model=args.model,
                          trials=args.trials_per_site, offline=args.offline,
                          src_rel=args.src_rel, tests_rel=args.tests_rel,
-                         python=args.python)
+                         python=args.python, max_workers=args.max_workers)
     if args.cmd == "equiv":
         return run_equiv(args.subject, args.survivors, out_path=args.out,
                          confidence_cutoff=args.confidence_cutoff,
