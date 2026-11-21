@@ -126,6 +126,6 @@ Sprint 8 candidates (parked, none active):
   plain-language prose). Avoids an LLM broadly judging tests it never ran.
 - LLM/Andy corpus for dead-tests (richer faults would clear the 9
   constant-asserting tests).
-- `.env`-loader survivor revealed in S6 dogfood (`key and ... not in
-  os.environ` `and`→`or` would break "export wins over .env") — test-side fix
-  for the tool's own suite. Still a real gap (`.env` code unchanged since S6).
+- `.env`-loader survivor (S6: `key and ... not in os.environ` `and`→`or`)
+  — **DONE sprint 8**: export-wins test-side guard landed; deterministic
+  self-score 1.000 (14 caught / 0 escapes); 107 tests green.

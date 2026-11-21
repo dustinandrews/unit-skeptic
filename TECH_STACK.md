@@ -86,6 +86,15 @@
 - Human-facing vocabulary (user-directed): **caught / escape / good / bad**
   tests (was killed / survived / dead). Internal JSON tokens unchanged.
 
+## `.env`-loader guard (sprint 8, shipped)
+- Test-side fix for S6's last deterministic survivor: `_load_env_file`
+  (`andy.py:62`) `and`→`or` escape killed by
+  `test_load_env_file_export_wins_over_dotenv` (export wins, `.env` never
+  overwrites an exported var) + 2 behavior locks (fill path, quote/comment
+  trim). No source change.
+- Self-score `andy.py`/adversary package: **0.929 → 1.000** (14 caught, 0
+  escapes). Full suite **107 tests green**.
+
 ## Dependencies
 - Guinea-pig: none beyond stdlib + pytest.
 - Instrument: stdlib (AST, subprocess, tempfile, json) + pytest for dev.

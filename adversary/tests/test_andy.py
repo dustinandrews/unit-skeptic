@@ -374,3 +374,50 @@ def test_andy_imports_stdlib_only():
         elif isinstance(node, ast.ImportFrom) and node.module:
             root = node.module.split(".")[0]
             assert root in allowed, f"non-stdlib import in andy.py: {node.module}"
+
+
+# ---------------------------------------------------------------------------
+# _load_env_file export-wins contract (Sprint 8; kills the S6 and->or survivor)
+# ---------------------------------------------------------------------------
+
+def _write_env(tmp_path, text):
+    p = tmp_path / ".env"
+    p.write_text(text)
+    return str(p)
+
+
+def test_load_env_file_export_wins_over_dotenv(tmp_path, monkeypatch):
+    """FR-001: an already-set env var is NOT overwritten by a .env value, and
+    is absent from the returned `loaded` map.
+
+    Kills the S6 survivor at andy.py:62 (`if key and key not in os.environ:`
+    flipped to `or`): under the mutant the guard is always true for a non-empty
+    key, so the .env value would overwrite the exported var here.
+    """
+    key = "S8_EXPORTED_VAR"
+    monkeypatch.setenv(key, "exported")
+    loaded = andy._load_env_file(_write_env(tmp_path, f"{key}=file"))
+    assert os.environ[key] == "exported"          # export wins; not overwritten
+    assert key not in loaded                       # skipped, not loaded
+
+
+def test_load_env_file_fills_unset_var(tmp_path, monkeypatch):
+    """FR-002: a var NOT already set IS filled from the .env and reported in
+    the returned `loaded` dict (the normal fill path still works)."""
+    key = "S8_FILL_VAR"
+    monkeypatch.delenv(key, raising=False)
+    loaded = andy._load_env_file(_write_env(tmp_path, f"{key}=file"))
+    assert os.environ[key] == "file"
+    assert loaded[key] == "file"
+
+
+def test_load_env_file_strips_quotes_and_skips_comments(tmp_path, monkeypatch):
+    """FR-003 sanity: quotes around a value are stripped, and comment/blank
+    lines are ignored (locks the trimming/skip behavior used by the loader)."""
+    key = "S8_Q_VAR"
+    monkeypatch.delenv(key, raising=False)
+    loaded = andy._load_env_file(_write_env(
+        tmp_path, "# comment\n\nS8_Q_VAR=\"quoted\"\n"))
+    assert os.environ[key] == "quoted"
+    assert loaded[key] == "quoted"
+    assert set(loaded) == {key}            # comment+blank lines added nothing
