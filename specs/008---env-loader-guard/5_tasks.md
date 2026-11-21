@@ -32,9 +32,15 @@ the goal of killing the S6 survivor. Full suite **107 passed** (104 + 3).
 - Mutant (and→or) now caught by FR-001 test (RED). S6 survivor killed.
 - Full suite **107 passed** in 16.67s.
 
-### Task 3 — In progress (self-score + docs)
-- Deterministic self-score on adversary package running (proc_066266a31065).
-- Pending: update test-count references (README 104→107, TECH_STACK) and
-  commit sprint so far.
+### Task 3 — Done ✓ (self-score + docs)
+- Deterministic self-score on adversary package: **score 1.000** (14 caught,
+  0 escapes) — up from 0.929; the `.env` survivor is gone.
+- Updated test-count references (README 104→107, TECH_STACK sprint-8 block,
+  PRODUCT_PLAN `.env` item → DONE), committed 9f55146.
 
-### Task 4 — Pending (gates 6–8 reviews, gate 10 merge)
+### Task 4 — Done ✓ (gates 6–8 reviews, gate 10 merge)
+- Gates 6–8 PASS deleg_8a95e856 (tasks/test/product; MED SC-001 wording
+  applied + LOW plan hygiene done; LOW pre-existing guineapig collection
+  break recorded, out of scope).
+- Gate 9 retrospective written (9_retrospective.md).
+- Gate 10: merged to main, pushed.

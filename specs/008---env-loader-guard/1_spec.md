@@ -80,11 +80,14 @@ caught.
 - **NFR-002**: All existing tests still green; test count increases by ≥2.
 
 ## Success Criteria
-- **SC-001**: ≥2 new tests, each mapping to FR-001 and FR-002, that FAIL (RED)
-  when the `and`→`or` mutant is present — verified by applying the one-line
-  `or` edit to a scratch copy of `andy.py` and running the suite against it
-  (or via the tool's own mutation runner). RED-to-GREEN is proved at
-  implementation time.
+- **SC-001**: ≥1 genuine kill test (the export-wins test) that FAILS (RED) when
+  the `and`→`or` mutant is present — verified by applying the one-line `or`
+  edit to a scratch copy of `andy.py` and running the suite against it (or via
+  the tool's own mutation runner) — PLUS behavior-lock tests covering the
+  fill path and quote/comment trim (FR-002/FR-003), which pass under BOTH
+  variants (they lock correct behavior, not the guard flip). RED-to-GREEN is
+  proved at implementation time. Only the export-wins branch is mutated by
+  `and`→`or`, so exactly one kill test is the correct scope.
 - **SC-002**: Full suite green on `main` baseline + new tests.
 - **SC-003** (reported, not gating): re-run deterministic self-score on
   `andy.py`; expect the `.env` survivor no longer present. This is the payoff —

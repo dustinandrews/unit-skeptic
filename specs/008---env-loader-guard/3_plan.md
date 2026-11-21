@@ -2,7 +2,7 @@
 
 **Branch**: `sprint-8-env-loader-guard`
 **Created**: 2026-11-18
-**Status**: Draft
+**Status**: COMPLETE
 
 ## Summary
 Add 3 focused tests to `adversary/tests/test_andy.py` that exercise
