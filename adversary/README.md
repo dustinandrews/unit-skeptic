@@ -15,8 +15,8 @@ injects one realistic fault at a time into a clean, green codebase, runs the
 suite, and reports:
 
 - a **score** = fraction of injected faults the tests caught;
-- a **machine-readable list of surviving faults** = the suite's actual blind spots;
-- which tests never kill any fault (**dead tests**).
+- a **machine-readable list of escaping faults** = the suite's actual blind spots;
+- which tests catch nothing (**bad tests**).
 
 A suite that scores 23% catches 23% of realistic faults, regardless of how many
 green tests it has.
@@ -25,11 +25,14 @@ green tests it has.
 
 We ran unit-skeptic against **its own test suite**: the mutation target was
 `andy.py` (the LLM fault generator), and the subject suite was unit-skeptic's
-own tests. To read the numbers, two things matter:
+own tests. To read the numbers, three words matter:
 
-- The **score is the fraction of injected faults the tests caught**:
-  `killed / (killed + survived)`. "Killed" means at least one test failed with
-  that fault in; "survived" means every test still passed.
+- **caught** (a "good" test): at least one test failed while that fault was
+  injected — the suite did its job.
+- **escape** (a "bad" blind spot): no test failed; the fault slipped
+  through. That is a missed bug.
+- The **score** is the fraction of injected faults the tests caught:
+  `caught / (caught + escapes)` (internally `killed / (killed + survived)`).
 - The tool can generate faults two ways, and they are not equally demanding:
   - the **deterministic corpus** makes simple mechanical edits, flipping one
     operator or boolean at a time (e.g. `==` into `!=`, `and` into `or`);
@@ -45,15 +48,15 @@ own tests. To read the numbers, two things matter:
 | deterministic (simple operator flips) | 13 | 12 | 0.92 |
 | live LLM (realistic code edits) | 78 | 41 | 0.53 |
 
-Under the richer LLM corpus, **37 of 78** injected faults survived, meaning no
-test failed while that fault was present. Two of the clearest blind spots:
+Under the richer LLM corpus, **37 of 78** injected faults escaped — no test
+failed while that fault was present. Two of the clearest blind spots:
 
-- Flipping the transport's `"POST"` to `"GET"` **survived**. The tests check
+- Flipping the transport's `"POST"` to `"GET"` **escaped**. The tests check
   that "the API key stays in the header", but never assert the HTTP method,
   encoding, timeout, or endpoint, so any of those could change and break a live
   call without tripping a test.
 - An `and` → `or` regression in the reply parser's dedupe/fenced-fallback path
-  **survived**; duplicates, empty strings, and the snippet matching the
+  **escaped**; duplicates, empty strings, and the snippet matching the
   original all leak through uncaught.
 
 In plain terms: a suite showing 88 green tests still only caught about half of
@@ -101,8 +104,11 @@ request body, or surviving-fault output. `.env` is gitignored; commit
 ## Score & verdicts
 
 ```
-score = killed / (killed + survived)
+score = caught / (caught + escapes)
 ```
+
+(Internally the records carry `killed`/`survived`; "caught" = `killed`,
+"escapes" = `survived`.)
 
 `error` (mutant didn't parse / couldn't run) and `timeout` are excluded from the
 denominator; they are not valid faults. `score >= 0.8` is the acceptance
@@ -110,8 +116,8 @@ threshold.
 
 | verdict | meaning |
 |---------|---------|
-| `killed` | ≥1 test failed with this fault injected (good) |
-| `survived` | all tests still passed (suite blind spot) |
+| `killed` → **caught** | ≥1 test failed with this fault injected (a good test caught it) |
+| `survived` → **escape** | all tests still passed; the fault slipped through (missed bug) |
 | `error` | mutant invalid / un-runnable; excluded |
 | `timeout` | suite exceeded wall clock; excluded |
 
@@ -139,12 +145,12 @@ run the suite). Omit a flag to keep the corresponding default.
 
 ## More
 
-- **`adversary equiv`**, cheap mechanical first-pass triage of survivors into
-  `equivalent` / `killable` / `undecided` via two clean A/B code blocks to a JEV
-  decision model (so equivalent-mutant false positives aren't charged to the
-  score). Subject is read-only.
-- **`adversary deadtests`**, flags tests that never kill a fault
-  (corpus-qualified: a test is `dead` under the *deterministic* corpus unless a
+- **`adversary equiv`**, cheap mechanical first-pass triage of escaped faults
+  into `equivalent` / `killable` / `undecided` via two clean A/B code blocks to a
+  JEV decision model (so equivalent-mutant false positives aren't charged to
+  the score). Subject is read-only.
+- **`adversary deadtests`**, flags tests that catch nothing ("bad tests";
+  corpus-qualified: a test is `dead` under the *deterministic* corpus unless a
   richer LLM corpus would kill it).
 
 See the per-command docs below for full usage.
@@ -176,18 +182,18 @@ Shipped implementations:
 
 ## Survivor triage, JEV equivalence (`adversary equiv`)
 
-Surviving faults are either **real blind spots** (tests don't catch a genuine
+Escaped faults are either **real blind spots** (tests don't catch a genuine
 behavior change) or **equivalent mutants** (syntactically different,
-behaviorally identical, false positives). `adversary equiv` gives every
-survivor a cheap mechanical first pass: build two clean A/B code blocks and ask
-the JEV decision model (`typesafe/jev-1.14`) whether they are equivalent.
+behaviorally identical, false positives). `adversary equiv` gives every escape a
+cheap mechanical first pass: build two clean A/B code blocks and ask the JEV
+decision model (`typesafe/jev-1.14`) whether they are equivalent.
 
 ```bash
 adversary equiv --subject /path/to/subject --survivors survivors.json \
     [--out triage.json] [--confidence-cutoff 0.7] [--offline]
 ```
 
-Each survivor gets `"label"` in {`equivalent`, `killable`, `undecided`} plus a
+Each escape gets `"label"` in {`equivalent`, `killable`, `undecided`} plus a
 confidence in [0,1]. Subject source is read-only (never modified).
 
 ### A/B block builder (FR-002)
@@ -220,9 +226,9 @@ Bucketing (single-source-of-truth thresholds in `adversary/equiv.py`):
 
 ## Dead-test detection (`adversary deadtests`)
 
-Flags tests that never kill a fault. A test's **kill count** = how many
+Flags tests that never catch a bug. A test's **kill count** = how many
 behavior-changing mutants (parsed, `killed`) it failed on across the corpus.
-A test with kill count 0 is **dead**.
+A test with kill count 0 is **bad** (catches nothing).
 
 ```bash
 adversary deadtests --subject /path/to/subject [--out dead-tests.json]
@@ -254,5 +260,5 @@ failures are noise, matching the score denominator). Subject is read-only.
 ## Dev
 
 ```bash
-.venv/bin/python -m pytest -q -p no:cacheprovider   # 101 tests
+.venv/bin/python -m pytest -q -p no:cacheprovider   # 104 tests
 ```

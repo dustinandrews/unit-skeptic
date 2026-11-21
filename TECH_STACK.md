@@ -75,6 +75,17 @@
   `attrs.python` in survivors.json. All plumbing; no change to mutation or
   scoring semantics. 101 tests green.
 
+## Real-repo scoring, runner shadowing fix, vocabulary (post-S7)
+- AIEmailSummary scored end-to-end: **0.846** (11 caught / 2 escapes) on 310
+  green tests; `--src-rel src/email_router --tests-rel src/tests --python
+  <venv>/bin/python`.
+- Runner shadowing fix (`ee84314`): minimal PYTHONPATH shadows never loaded
+  mutants in src-layout repos (pytest force-prepends `subject/src`); runner now
+  mirrors the whole subject tree into scratch + runs pytest cwd=scratch so
+  mutants actually load. 104 tests green.
+- Human-facing vocabulary (user-directed): **caught / escape / good / bad**
+  tests (was killed / survived / dead). Internal JSON tokens unchanged.
+
 ## Dependencies
 - Guinea-pig: none beyond stdlib + pytest.
 - Instrument: stdlib (AST, subprocess, tempfile, json) + pytest for dev.

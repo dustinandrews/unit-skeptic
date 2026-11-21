@@ -83,11 +83,11 @@ def run_score(subject_dir, mutator="deterministic", model=None, trials=1,
     attribution = f"mutator={mutator}"
     if model_id:
         attribution += f" model={model_id}"
-    print(f"score = {score:.3f}  (killed={verdicts.count('killed')}, "
-          f"survived={verdicts.count('survived')}, "
+    print(f"score = {score:.3f}  (caught={verdicts.count('killed')}, "
+          f"escapes={verdicts.count('survived')}, "
           f"error={verdicts.count('error')}, timeout={verdicts.count('timeout')})"
           f"  {attribution}")
-    print("survivors written to survivors.json")
+    print("escapes (missed bugs) written to survivors.json")
     return 0
 
 
@@ -119,7 +119,7 @@ def run_equiv(subject_dir, survivors_path, out_path=None, confidence_cutoff=None
         json.dump(triaged, fh, indent=2)
     from collections import Counter  # local; prints a human summary
     counts = Counter(r["label"] for r in triaged)
-    print(f"triage: {len(triaged)} survivors — "
+    print(f"triage: {len(triaged)} escapes triaged — "
           f"equivalent={counts.get('equivalent', 0)}, "
           f"killable={counts.get('killable', 0)}, "
           f"undecided={counts.get('undecided', 0)}")
@@ -138,7 +138,7 @@ def run_deadtests(subject_dir, out_path=None, src_rel="src", tests_rel="tests",
                                         src_rel=src_rel, tests_rel=tests_rel,
                                         python=python)
     doc = json.loads(json_text)
-    print(f"dead tests: {doc['dead']} of {doc['total']}  (corpus={doc['corpus']})")
+    print(f"bad tests (catch nothing): {doc['dead']} of {doc['total']}  (corpus={doc['corpus']})")
     print(f"written to {out_path}")
     return 0
 
@@ -167,9 +167,9 @@ def main(argv=None):
     ps.add_argument("--max-workers", type=int, default=1,
                     help="run mutant sites across N threads (default 1); speeds up "
                          "large real-repo subjects (suite runs release the GIL)")
-    pe = sub.add_parser("equiv", help="triage survivors by JEV equivalence")
+    pe = sub.add_parser("equiv", help="triage escaped bugs by JEV equivalence")
     pe.add_argument("--subject", required=True, help="path to subject repo (read-only)")
-    pe.add_argument("--survivors", required=True, help="survivors JSON (scorer output)")
+    pe.add_argument("--survivors", required=True, help="survivors/escapes JSON (scorer output)")
     pe.add_argument("--out", default=None, help="triage JSON output path (default ./triage.json)")
     pe.add_argument("--confidence-cutoff", type=float, default=None,
                     help="confidence threshold for undecided (default module constant)")
@@ -177,7 +177,7 @@ def main(argv=None):
                     help="use the deterministic offline stub instead of live JEV")
     pe.add_argument("--src-rel", default="src",
                     help="dir (under --subject) holding the source (default src)")
-    pd = sub.add_parser("deadtests", help="flag tests that never kill a fault")
+    pd = sub.add_parser("deadtests", help="flag tests that never catch a bug")
     pd.add_argument("--subject", required=True, help="path to subject repo (read-only)")
     pd.add_argument("--out", default=None, help="dead-tests JSON output path (default ./dead-tests.json)")
     pd.add_argument("--src-rel", default="src",

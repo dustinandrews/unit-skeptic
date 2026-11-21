@@ -100,6 +100,22 @@ surviving faults = the actionable gap list; dead tests = detectable noise).
   deadtests-threading capture); default-flag guineapig run bit-identical
   (73 sites, score 1.000).
 
+### Post-S7: real-repo score + vocabulary + runner shadowing fix
+- **AIEmailSummary scored end-to-end** [2026-11-18]: with `--src-rel
+  src/email_router --tests-rel src/tests --python <venv>/bin/python`, score
+  **0.846** (11 caught / 2 escapes) on the current suite (310 green). The two
+  escapes are both the cosmetic line-101 usage-string; all previously-uncaught
+  classes (and→or gate, argv guard, config-typo) now caught.
+- **Runner shadowing bug fixed** (`ee84314`): minimal PYTHONPATH shadows never
+  loaded mutants in src-layout repos (pytest force-prepends `subject/src` to
+  sys.path), so every mutant *appeared* to survive → false 0.000. Runner now
+  mirrors the whole subject tree into scratch and runs pytest with cwd=scratch;
+  package-qualified mutants actually load. Regression test added.
+- **Vocabulary [user-directed]**: human-facing output now uses **caught /
+  escape** with **good/bad tests** (was killed / survived / dead) — e.g.
+  `score = 0.846  (caught=11, escapes=2)`. Internal JSON tokens
+  (`killed`/`survived`/`dead`) unchanged so data format stays stable.
+
 ## Next (ordered)
 Sprint 8 candidates (parked, none active):
 - Dead-test *explanation* (why a test is dead: tautology vs unreachable
@@ -110,8 +126,6 @@ Sprint 8 candidates (parked, none active):
   plain-language prose). Avoids an LLM broadly judging tests it never ran.
 - LLM/Andy corpus for dead-tests (richer faults would clear the 9
   constant-asserting tests).
-- Score the AIEmailSummary suite end-to-end with the Sprint 7 flags (the pilot
-  now has the tool flexibility to run it; exercise a real large repo).
-- New `.env`-loader survivor revealed in S6 dogfood (`key and ... not in
+- `.env`-loader survivor revealed in S6 dogfood (`key and ... not in
   os.environ` `and`→`or` would break "export wins over .env") — test-side fix
-  for the tool's own suite.
+  for the tool's own suite. Still a real gap (`.env` code unchanged since S6).
