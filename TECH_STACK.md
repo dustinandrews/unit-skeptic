@@ -63,8 +63,7 @@
 - G2 (`encode("utf-8")`→`"ascii"`) = EQUIVALENT under `json.dumps(ensure_ascii=True)`;
   documented, not killable (byte-identical output).
 - 92 tests green; deterministic self-score 0.923 → 0.929 (13/14 kills; the one
-  survivor = `.env` loader `and`→`or`, new gap for follow-up; now 100 after
-  Sprint 7's flag tests).
+  survivor = `.env` loader `and`→`or`, a still-open gap for follow-up).
 
 ## Repo flexibility (sprint 7, shipped)
 - `score`/`equiv`/`deadtests` gain `--src-rel` (default `src`); `score` and
@@ -73,7 +72,8 @@
   preserve all prior behavior; flags let real repos (tests under `src/tests`,
   own venv python) be scored. `--python` non-default is recorded as
   `attrs.python` in survivors.json. All plumbing; no change to mutation or
-  scoring semantics. 101 tests green.
+  scoring semantics. 104 tests green (101 + 2 src-layout/threading + 1
+  shadowing regression).
 
 ## Real-repo scoring, runner shadowing fix, vocabulary (post-S7)
 - AIEmailSummary scored end-to-end: **0.846** (11 caught / 2 escapes) on 310
