@@ -4,6 +4,14 @@ The real subject repo is NEVER modified. Each mutant is materialized into a
 scratch dir that mirrors the module's relative path, and the subject's test
 suite runs against that shadow (PYTHONPATH shadow-first, pytest `pythonpath`
 disabled so the mutant actually loads). Verdicts are mechanical.
+
+Shadowing package-qualified imports (src-layout repos): pytest auto-prepends
+the repo's declared package root (``src`` via ``[tool] where=["src"]``) to
+``sys.path`` ahead of any PYTHONPATH we set, so a mutant that shadows only at
+scratch-root (PYTHONPATH) loses to the baseline. We therefore drop a tiny
+``conftest.py`` into the scratch that force-inserts scratch at ``sys.path[0]``;
+pytest loads a repo conftest before collecting test modules, so the conftest's
+insert wins and the mutant shadows the baseline module regardless of layout.
 """
 import ast
 import os
@@ -15,6 +23,14 @@ import time
 import xml.etree.ElementTree as ET
 
 DEFAULT_TIMEOUT_S = 120
+
+# Imported by every scratch dir so the mutant shadows the baseline module even
+# in src-layout repos where pytest pre-inserts the package root into sys.path
+# ahead of PYTHONPATH.
+_CONFTEST_BOOTSTRAP = (
+    "import os, sys\n"
+    "sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))\n"
+)
 
 
 def _junit_failing_ids(root):
@@ -48,10 +64,10 @@ def _junit_all_ids(root):
     return ids
 
 
-def _pytest(cmd, subject_dir, env, timeout_s):
+def _pytest(cmd, run_dir, env, timeout_s):
     t0 = time.time()
     try:
-        proc = subprocess.run(cmd, cwd=subject_dir, env=env,
+        proc = subprocess.run(cmd, cwd=run_dir, env=env,
                               capture_output=True, timeout=timeout_s)
         return proc, time.time() - t0
     except subprocess.TimeoutExpired:
@@ -74,12 +90,41 @@ def run_oracle(subject_dir, src_dir, tests_rel="tests", python=None,
     return proc.returncode, secs, ""
 
 
+_COPY_SKIP_DIRS = {
+    ".git", "__pycache__", ".venv", "venv", "node_modules", ".pytest_cache",
+    ".mypy_cache", ".ruff_cache", "site-packages",
+}
+
+
+def _copy_tree(src, dst):
+    """Mirror a source tree into dst, skipping heavy/vcs/build dirs.
+
+    Copies files and dirs; ignores anything in _COPY_SKIP_DIRS and
+    *_egg-info/ and *.pyc. Used to build a faithful shadow so pytest's
+    rootdir inference resolves mutations in src-layout (package-qualified)
+    repos.
+    """
+    if not os.path.isdir(src):
+        return
+    os.makedirs(dst, exist_ok=True)
+    for root, dirs, files in os.walk(src):
+        rel = os.path.relpath(root, src)
+        dst_dir = dst if rel == "." else os.path.join(dst, rel)
+        os.makedirs(dst_dir, exist_ok=True)
+        dirs[:] = [d for d in dirs if d not in _COPY_SKIP_DIRS and not d.endswith(".egg-info")]
+        for f in files:
+            if f.endswith(".pyc"):
+                continue
+            shutil.copy2(os.path.join(root, f), os.path.join(dst_dir, f))
+
+
 def _copy_pkg_inits(scratch, module_rel, src_dir):
     """Copy enclosing package __init__.py files into the shadow dir.
 
     For each ancestor directory of module_rel (e.g. "guineapig"), if src_dir
     has a corresponding __init__.py, write it into the scratch shadow so that
-    directory is a regular package there too.
+    directory is a regular package there too. (Used as a fast path for the
+    flat-repo case; the full-tree path uses _copy_tree instead.)
     """
     parts = module_rel.split(os.sep)
     for i in range(1, len(parts)):
@@ -101,7 +146,10 @@ def run_mutant(subject_dir, module_rel, mutated_source, src_dir=None,
     scratch dir that mirrors module_rel, and PYTHONPATH is
     scratch:src_dir so the mutant shadows the real module. Any `__init__.py`
     files enclosing module_rel are copied into the shadow so package dirs stay
-    REGULAR packages (a namespace shadow won't override a real package).
+    REGULAR packages (a namespace shadow won't override a real package). A
+    bootstrap conftest.py is also written to the scratch that force-inserts it
+    at sys.path[0], overriding pytest's own src-layout prepend so the mutant
+    actually loads.
 
     Returns a mechanical verdict: killed / survived / error / timeout.
 
@@ -120,20 +168,38 @@ def run_mutant(subject_dir, module_rel, mutated_source, src_dir=None,
         return ("error", []) if junit_path else "error"
     scratch = tempfile.mkdtemp(prefix="adv_mutant_")
     try:
-        dst = os.path.join(scratch, module_rel)
+        # For real (src-layout) repos pytest auto-prepends the package root --
+        # e.g. a `src/email_router/ai_service.py` imported as
+        # `email_router.ai_service` -- to sys.path[0] via rootdir inference,
+        # which unconditionally beats any PYTHONPATH-based minimal shadow; a
+        # minimal shadow therefore lets every mutant *appear* to survive
+        # (false 0.000 score). Fix: mirror the WHOLE subject tree into scratch,
+        # overlay the mutant at its subject-relative path, and run pytest with
+        # cwd=scratch so rootdir/AUTOLOAD resolves the mutant where it truly
+        # lives. Verified against AIEmailSummary's 303-test suite.
+        _copy_tree(subject_dir, scratch)
+        if src_dir:
+            dst = os.path.join(scratch, os.path.relpath(
+                os.path.join(src_dir, module_rel), subject_dir))
+        else:
+            dst = os.path.join(scratch, module_rel)
         os.makedirs(os.path.dirname(dst) or scratch, exist_ok=True)
         with open(dst, "w") as fh:
             fh.write(mutated_source)
-        # Copy enclosing __init__.py files so shadow package dirs are regular.
-        if src_dir:
-            _copy_pkg_inits(scratch, module_rel, src_dir)
         env = dict(os.environ)
-        path = [os.path.abspath(scratch)]
+        # Shadow paths: the scratch mirror root (for import as a top-level
+        # name) plus the mirrored src dir inside scratch (for src-layout
+        # imports resolved via rootdir/'where'). Both resolve the mutant.
+        shadow_src = scratch
         if src_dir:
-            path.append(os.path.abspath(src_dir))
-        env["PYTHONPATH"] = os.pathsep.join(path) + os.pathsep + env.get("PYTHONPATH", "")
+            shadow_src = os.path.join(scratch, os.path.relpath(src_dir, subject_dir))
+        env["PYTHONPATH"] = os.pathsep.join([os.path.abspath(scratch),
+                                             os.path.abspath(shadow_src)]) \
+            + os.pathsep + env.get("PYTHONPATH", "")
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         py = python or sys.executable
+        # Run pytest inside the scratch tree so rootdir inference + the
+        # mirrored tests_rel (which is relative to subject_dir) both resolve.
         cmd = [py, "-m", "pytest", tests_rel, "-q", "-p",
                "no:cacheprovider", "-o", "pythonpath="]
         if junit_path is not None:
@@ -143,7 +209,7 @@ def run_mutant(subject_dir, module_rel, mutated_source, src_dir=None,
             if not os.path.isabs(junit_path):
                 raise ValueError(f"junit_path must be absolute: {junit_path!r}")
             cmd += ["--junitxml=" + junit_path]
-        proc, _ = _pytest(cmd, subject_dir, env, timeout_s)
+        proc, _ = _pytest(cmd, scratch, env, timeout_s)
         if proc is None:
             return ("timeout", []) if junit_path else "timeout"
         verdict = "survived" if proc.returncode == 0 else "killed"

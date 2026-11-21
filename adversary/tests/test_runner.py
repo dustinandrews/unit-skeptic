@@ -226,6 +226,35 @@ def _write_subject_with_nested_tests(dirpath):
     return {"dir": dirpath, "src": src}
 
 
+def test_src_layout_mutant_actually_loads_and_kills(tmp_path):
+    """Regression: src-layout (package-qualified) mutant must actually load.
+
+    Reproduces the false-0.000 bug: with `src/email_router/ai_service.py`
+    imported as `email_router.ai_service`, pytest auto-prepends `src` to
+    sys.path via rootdir inference, so the old minimal shadow never ran the
+    mutant and every mutant *appeared* to survive. The full-tree mirror +
+    cwd=scratch must resolve the mutant so a behavior-changing edit is killed.
+    """
+    src = os.path.join(str(tmp_path), "src")
+    pkg = os.path.join(src, "email_router")
+    tests = os.path.join(src, "tests")
+    os.makedirs(pkg, exist_ok=True)
+    os.makedirs(tests, exist_ok=True)
+    with open(os.path.join(pkg, "__init__.py"), "w") as fh:
+        fh.write('"""email_router."""\n')
+    with open(os.path.join(pkg, "ai_service.py"), "w") as fh:
+        fh.write("def ok():\n    return 'x'\n")
+    with open(os.path.join(tests, "test_ai_service.py"), "w") as fh:
+        fh.write("from email_router.ai_service import ok\n"
+                 "def test_ok():\n    assert ok() == 'x'\n")
+    original = open(os.path.join(pkg, "ai_service.py")).read()
+    mutated = original.replace("return 'x'", "return 'y'")  # breaks test_ok
+    # tests_rel=src/tests (nested), src_rel=src/email_router like the real repo.
+    verdict = runner.run_mutant(str(tmp_path), "ai_service.py", mutated,
+                                src_dir=pkg, tests_rel="src/tests")
+    assert verdict == "killed"
+
+
 # --- repo-flexibility (Sprint 7) --------------------------------------------
 
 def test_oracle_default_tests_misses_nested_tests(tmp_path):
