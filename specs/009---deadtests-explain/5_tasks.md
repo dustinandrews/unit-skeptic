@@ -14,8 +14,15 @@ extended `classify` to emit `class` + `reason`. Wrote 6 new pure tests first
 `test_run_deadtests_emits_mechanical_reasons`: patches `runner.run_mutant`,
 `sites.find_sites`, `DeterministicMutator.mutate`, `_baseline_test_ids`
 (real non-pure deps = subprocess/pytest). Two-class synthetic subject verifies
-CASE A (TestLone::test_c corpus poverty), alive confirmation (TestStrong a/b),
+CASE A (TestLone::test_c corpus poverty), CASE B (TestStrong::test_weak,
+dead in a class whose siblings killed), alive confirmation (TestStrong a/b),
 and that every entry has `class` + `reason`.
+
+### Review finding (deleg_4593d564, MED) — applied
+Gate-7 noted CASE B was only covered at unit level. Extended the integration
+fixture with `TestStrong::test_weak` (0 kills, class siblings 3) and asserted
+its CASE B reason in the JSON, so SC-003 (CASE A + CASE B + alive end-to-end)
+is now fully met. 114 green.
 
 ### Task 3 — Done ✓ (full suite)
 - **114 passed** (107 + 7 new: 6 pure + 1 integration).

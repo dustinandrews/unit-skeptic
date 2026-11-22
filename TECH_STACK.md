@@ -95,6 +95,17 @@
 - Self-score `andy.py`/adversary package: **0.929 → 1.000** (14 caught, 0
   escapes). Full suite **107 tests green**.
 
+## Dead-test explanation (sprint 9, shipped)
+- `deadtests` JSON entries gain mechanical `reason` + `class` (Sprint 9): dead
+  tests explained via class-region sibling-kill topology — CASE A (corpus
+  poverty: no behavior-changing mutant in the test's class) vs CASE B (regional
+  no-op/redundancy: siblings in the class killed, this test did not) — plus an
+  alive confirmation (`caught {K} mutants`). Pure fns (`_class_region`,
+  `class_kill_totals`, `reason`) in `deadtests.py`; no LLM, no change to
+  score/verdict/runner contract (gate-2 redesign: error/timeout failing-sets are
+  empty, so regional participation comes from class topology, not per-operator
+  misses). 114 tests green.
+
 ## Dependencies
 - Guinea-pig: none beyond stdlib + pytest.
 - Instrument: stdlib (AST, subprocess, tempfile, json) + pytest for dev.

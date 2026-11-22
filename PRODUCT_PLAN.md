@@ -117,13 +117,11 @@ surviving faults = the actionable gap list; dead tests = detectable noise).
   (`killed`/`survived`/`dead`) unchanged so data format stays stable.
 
 ## Next (ordered)
-Sprint 8 candidates (parked, none active):
-- Dead-test *explanation* (why a test is dead: tautology vs unreachable
-  corpus). Design decided ([2026-11-18]): verdict + raw reason are MECHANICAL
-  (summarize already-collected kill data: which sites/operators a dead test
-  never covered) with NO LLM; an LLM is used only as a narrow, targeted
-  explainer for ambiguous cases (convert "missed operators at lines A–B" into
-  plain-language prose). Avoids an LLM broadly judging tests it never ran.
+Sprint 10 candidates (parked, none active):
+- Dead-test *explanation* — **DONE sprint 9**: `deadtests` now carries
+  mechanical `reason` + `class`. Design realized as class-region sibling-kill
+  topology (CASE A corpus poverty / CASE B regional no-op). The LLM prose
+  explainer for ambiguous reasons remains a documented follow-up (no LLM here).
 - LLM/Andy corpus for dead-tests (richer faults would clear the 9
   constant-asserting tests).
 - `.env`-loader survivor (S6: `key and ... not in os.environ` `and`→`or`)

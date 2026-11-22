@@ -180,14 +180,17 @@ def test_run_deadtests_emits_mechanical_reasons(tmp_path, monkeypatch):
                     assert True
                 def test_b(self):
                     assert True
+                def test_weak(self):
+                    assert True
             class TestLone:
                 def test_c(self):
                     assert True
         """))
 
     # Fake a driver: return a consistent (verdict, failing_ids) trace with a
-    # two-class topology: t_a and t_b both kill something in TestStrong; t_c
-    # (TestLone) never fails -> CASE A. t_b also fails on fewer -> still alive.
+    # two-class topology: t_a and t_b kill in TestStrong (alive); t_weak (same
+    # class) never fails -> CASE B (siblings killed); t_c (TestLone) never
+    # fails and has no sibling kills -> CASE A (corpus poverty).
     fail_strong_a = ["tests.test_mod.TestStrong::test_a"]
     fail_strong_b = ["tests.test_mod.TestStrong::test_a",
                      "tests.test_mod.TestStrong::test_b"]
@@ -212,7 +215,8 @@ def test_run_deadtests_emits_mechanical_reasons(tmp_path, monkeypatch):
                         lambda self, site: [">="])
     monkeypatch.setattr(deadtests, "_baseline_test_ids",
                         lambda *a, **k: list(fail_strong_a) + list(fail_strong_b) +
-                        ["tests.test_mod.TestLone::test_c"])
+                        ["tests.test_mod.TestLone::test_c",
+                         "tests.test_mod.TestStrong::test_weak"])
 
     doc = json.loads(deadtests.run_deadtests(str(tmp_path)))
     by_id = {t["test_id"]: t for t in doc["tests"]}
@@ -224,4 +228,9 @@ def test_run_deadtests_emits_mechanical_reasons(tmp_path, monkeypatch):
     assert by_id["tests.test_mod.TestLone::test_c"]["class"] == "tests.test_mod.TestLone"
     assert by_id["tests.test_mod.TestLone::test_c"]["reason"] == \
         "no behavior-changing mutant landed in this test's class (corpus poverty)"
+    # CASE B end-to-end: dead test_weak sits in a class whose siblings killed.
+    assert by_id["tests.test_mod.TestStrong::test_weak"]["status"] == "dead"
+    assert by_id["tests.test_mod.TestStrong::test_weak"]["class"] == "tests.test_mod.TestStrong"
+    assert by_id["tests.test_mod.TestStrong::test_weak"]["reason"] == \
+        "caught 0 mutants; sibling tests in class caught 3"
     assert all("class" in t and "reason" in t for t in doc["tests"])
