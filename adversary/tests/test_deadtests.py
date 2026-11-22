@@ -104,3 +104,124 @@ def test_run_deadtests_threads_src_rel_tests_rel_python(tmp_path, monkeypatch):
     assert calls["baseline"], "expected _baseline_test_ids to be invoked"
     assert calls["baseline"][0]["tests_rel"] == "src/tests"
     assert calls["baseline"][0]["python"] == "/v/bin/python"
+
+
+# ---------------------------------------------------------------------------
+# Dead-test explanation (Sprint 9, mechanical; class-region topology)
+# ---------------------------------------------------------------------------
+
+def test_class_region_prefix_before_final_ddot():
+    """Sprint 9: nodeid class region = prefix before the FINAL ::."""
+    assert deadtests._class_region("tests.test_svc.TestSvc::test_a") == "tests.test_svc.TestSvc"
+    assert deadtests._class_region("tests.test_svc::test_b") == "tests.test_svc"
+    # nested (file::Class::name) — only strip the final component.
+    assert deadtests._class_region("m.py::C::test_x") == "m.py::C"
+
+
+def test_class_region_fallback_when_no_ddot():
+    """Sprint 9 (L1): a bare nodeid with no :: is its own region."""
+    assert deadtests._class_region("tests.test_solo") == "tests.test_solo"
+
+
+def test_reason_case_A_corpus_poverty():
+    """Sprint 9: dead test, class region has no sibling kills -> CASE A."""
+    totals = {"tests.test_a": 0, "tests.test_b": 2}
+    r = deadtests.reason("tests.test_a::t1", 0, totals)
+    assert r == "no behavior-changing mutant landed in this test's class (corpus poverty)"
+
+
+def test_reason_case_B_regional_noop():
+    """Sprint 9: dead test, class region HAS sibling kills -> CASE B names N."""
+    totals = {"tests.test_svc": 3}
+    r = deadtests.reason("tests.test_svc::t_dead", 0, totals)
+    assert r == "caught 0 mutants; sibling tests in class caught 3"
+
+
+def test_reason_alive_confirmation():
+    """Sprint 9: alive test -> confirmation with its kill count."""
+    r = deadtests.reason("tests.test_svc::t_strong", 2, {"tests.test_svc": 2})
+    assert r == "caught 2 mutants"
+
+
+def test_classify_emits_class_and_reason():
+    """Sprint 9: classify wires class + reason for each entry."""
+    kill_map = {
+        "tests.test_cls::t_strong": 2,
+        "tests.test_cls::t_weak": 0,   # sibling (t_strong) has kills -> CASE B
+        "tests.test_other::t_lone": 0,  # no sibling kills -> CASE A
+    }
+    c = deadtests.classify(kill_map)
+    assert c["tests.test_cls::t_strong"]["class"] == "tests.test_cls"
+    assert c["tests.test_cls::t_strong"]["status"] == "alive"
+    assert c["tests.test_cls::t_weak"]["reason"] == \
+        "caught 0 mutants; sibling tests in class caught 2"
+    assert c["tests.test_other::t_lone"]["reason"] == \
+        "no behavior-changing mutant landed in this test's class (corpus poverty)"
+
+
+def test_run_deadtests_emits_mechanical_reasons(tmp_path, monkeypatch):
+    """Sprint 9 (SC-002): run_deadtests JSON carries class-reason mechanical
+    explanations. We patch the true non-pure deps (subprocess/pytest): run_mutant,
+    sites.find_sites, DeterministicMutator, _baseline_test_ids.
+    """
+    import textwrap
+    from adversary import deadtests, runner, sites
+    from adversary.mutators import DeterministicMutator
+
+    src = tmp_path / "src"
+    src.mkdir(parents=True)
+    (src / "mod.py").write_text("def is_positive(n):\n    return n > 0\n")
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "test_mod.py").write_text(
+        textwrap.dedent("""\
+            class TestStrong:
+                def test_a(self):
+                    assert True
+                def test_b(self):
+                    assert True
+            class TestLone:
+                def test_c(self):
+                    assert True
+        """))
+
+    # Fake a driver: return a consistent (verdict, failing_ids) trace with a
+    # two-class topology: t_a and t_b both kill something in TestStrong; t_c
+    # (TestLone) never fails -> CASE A. t_b also fails on fewer -> still alive.
+    fail_strong_a = ["tests.test_mod.TestStrong::test_a"]
+    fail_strong_b = ["tests.test_mod.TestStrong::test_a",
+                     "tests.test_mod.TestStrong::test_b"]
+
+    calls = {"mutant": []}
+
+    def fake_run_mutant(subject_dir, module_rel, mutated, **kw):
+        calls["mutant"].append(1)
+        i = len(calls["mutant"])
+        if i == 1:
+            return ("killed", fail_strong_a)
+        return ("killed", fail_strong_b)
+
+    def fake_sites(source, **kw):
+        # two sites so run_deadtests iterates twice
+        return [{"start": 0, "end": 1, "text": ">", "kind": "Cmp"},
+                {"start": 1, "end": 2, "text": ">", "kind": "Cmp"}]
+
+    monkeypatch.setattr(runner, "run_mutant", fake_run_mutant)
+    monkeypatch.setattr(sites, "find_sites", fake_sites)
+    monkeypatch.setattr(DeterministicMutator, "mutate",
+                        lambda self, site: [">="])
+    monkeypatch.setattr(deadtests, "_baseline_test_ids",
+                        lambda *a, **k: list(fail_strong_a) + list(fail_strong_b) +
+                        ["tests.test_mod.TestLone::test_c"])
+
+    doc = json.loads(deadtests.run_deadtests(str(tmp_path)))
+    by_id = {t["test_id"]: t for t in doc["tests"]}
+
+    assert by_id["tests.test_mod.TestStrong::test_a"]["kills"] == 2
+    assert by_id["tests.test_mod.TestStrong::test_a"]["reason"] == "caught 2 mutants"
+    assert by_id["tests.test_mod.TestStrong::test_b"]["status"] == "alive"
+    assert by_id["tests.test_mod.TestLone::test_c"]["status"] == "dead"
+    assert by_id["tests.test_mod.TestLone::test_c"]["class"] == "tests.test_mod.TestLone"
+    assert by_id["tests.test_mod.TestLone::test_c"]["reason"] == \
+        "no behavior-changing mutant landed in this test's class (corpus poverty)"
+    assert all("class" in t and "reason" in t for t in doc["tests"])

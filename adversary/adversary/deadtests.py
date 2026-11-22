@@ -4,7 +4,11 @@ Flags tests that never kill any fault. A test's **kill count** is the number
 of KILLED mutants (parseable, behavior-changing runs) on which it failed.
 Error/timeout mutants contribute NO attribution — their failures are parse or
 wall noise, not behavior (matches the score denominator). A test with
-kill count 0 is **dead** in the corpus used.
+kill count 0 is **dead** in the corpus used; every entry also carries a
+mechanical one-line `reason` (Sprint 9) derived from class-region sibling-kill
+topology — CASE A (corpus poverty: no behavior-changing mutant landed in the
+test's class) vs CASE B (regional no-op/redundancy: siblings in the class
+killed, this test did not), or a confirmation for alive tests.
 
 Pure aggregation here (independent, testable); the driver that walks sites and
 runs mutants lives next to it (`run_deadtests`) and feeds these fns.
@@ -30,14 +34,55 @@ def aggregate_kills(runs):
     return counts
 
 
+def _class_region(test_id):
+    """Sprint 9: nodeid class region = prefix before the final ``::``.
+
+    pytest junit emits ``classname::name``; the classname may itself contain
+    ``::`` (a path + class), so only the final component is the test name. When
+    there is no ``::`` (decorated/parametrized bare nodeids) the whole nodeid is
+    its own region — sibling kills 0, so such a dead test reads CASE A.
+    """
+    if "::" in test_id:
+        return test_id.rsplit("::", 1)[0]
+    return test_id
+
+
+def class_kill_totals(kill_map):
+    """Sum kills per class region (a test's siblings = class_total - own kills)."""
+    totals = {}
+    for tid, kills in kill_map.items():
+        region = _class_region(tid)
+        totals[region] = totals.get(region, 0) + kills
+    return totals
+
+
+def reason(test_id, kills, class_totals):
+    """Mechanical one-line reason (Sprint 9), from collected kill data only.
+
+    Dead (kills==0): CASE B if this test's class region holds sibling kills
+    (regional no-op / redundancy), else CASE A (corpus poverty). Alive: a
+    confirmation with the kill count. Pure + deterministic (NFR-003).
+    """
+    if kills > 0:
+        return f"caught {kills} mutants"
+    region = _class_region(test_id)
+    siblings = class_totals.get(region, 0) - kills  # kills is 0 here
+    if siblings > 0:
+        return f"caught 0 mutants; sibling tests in class caught {siblings}"
+    return "no behavior-changing mutant landed in this test's class (corpus poverty)"
+
+
 def classify(kill_map):
-    """Map test_id -> {test_id, kills, status} with status dead|alive."""
+    """Map test_id -> {test_id, kills, status, class, reason}."""
+    totals = class_kill_totals(kill_map)
     out = {}
     for tid, kills in kill_map.items():
         out[tid] = {
             "test_id": tid,
             "kills": kills,
             "status": "dead" if kills == 0 else "alive",
+            "class": _class_region(tid),
+            "reason": reason(tid, kills, totals),
         }
     return out
 
